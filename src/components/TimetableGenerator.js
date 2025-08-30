@@ -8,6 +8,7 @@ import './TimetableGenerator.css';
 
 const TimetableGenerator = () => {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadId, setUploadId] = useState(null); // Track upload ID for downloads
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState('');
@@ -16,13 +17,17 @@ const TimetableGenerator = () => {
   const [error, setError] = useState('');
 
   const handleFileSelect = (file) => {
+    console.log('File selected:', file);
     setSelectedFile(file);
     setError('');
     setGeneratedData([]);
+    setUploadId(null); // Reset upload ID
   };
 
   const handleFileReset = () => {
+    console.log('Resetting file selection');
     setSelectedFile(null);
+    setUploadId(null);
     setIsProcessing(false);
     setProgress(0);
     setProgressText('');
@@ -31,41 +36,123 @@ const TimetableGenerator = () => {
   };
 
   const handleGenerate = async () => {
-    if (!selectedFile || isProcessing) return;
+    if (!selectedFile || isProcessing) {
+      console.log('Cannot generate: no file selected or already processing');
+      return;
+    }
 
+    console.log('Starting timetable generation...');
     setIsProcessing(true);
     setError('');
     setGeneratedData([]);
+    setProgress(5);
+    setProgressText('Preparing upload...');
 
     try {
       // Upload file
       setProgress(10);
       setProgressText('Uploading file...');
-      const uploadResponse = await uploadFile(selectedFile);
-
-      // Generate timetable with progress updates
-      setProgress(30);
-      setProgressText('Processing data...');
+      console.log('Uploading file:', selectedFile.name);
       
+      const uploadResponse = await uploadFile(selectedFile);
+      console.log('Upload response:', uploadResponse);
+
+      // Extract uploadId from response - be very defensive
+      const currentUploadId =
+        uploadResponse?.uploadId ||
+        uploadResponse?.upload_id ||
+        uploadResponse?.fileId ||
+        uploadResponse?.id ||
+        (uploadResponse?.meta && (
+          uploadResponse.meta.upload_id || 
+          uploadResponse.meta.uploadId || 
+          uploadResponse.meta.id
+        ));
+
+      console.log('Extracted upload ID:', currentUploadId);
+
+      if (!currentUploadId) {
+        throw new Error('Upload ID not returned by server. Response: ' + JSON.stringify(uploadResponse));
+      }
+
+      // Store the upload ID for later use
+      setUploadId(currentUploadId);
+
+      // Start generation with progress updates
+      setProgress(30);
+      setProgressText('Starting timetable generation...');
+
       const progressCallback = (progressData) => {
-        setProgress(progressData.percentage);
-        setProgressText(progressData.message);
+        console.log('Progress update:', progressData);
+        if (!progressData) return;
+        
+        const pct = typeof progressData.percentage === 'number' ? progressData.percentage : null;
+        if (pct !== null) {
+          const clampedProgress = Math.min(Math.max(pct, 30), 95); // Keep between 30-95%
+          setProgress(clampedProgress);
+        }
+        
+        if (progressData.message) {
+          setProgressText(progressData.message);
+        }
       };
 
-      const timetableData = await generateTimetable(uploadResponse.fileId, progressCallback);
+      // Generate timetable using the upload ID
+      console.log('Generating timetable with ID:', currentUploadId);
+      const timetableData = await generateTimetable(currentUploadId, progressCallback);
+      console.log('Timetable generation completed:', timetableData);
+
+      // Extract timetables from response - handle different response formats
+      let timetables = [];
       
+      if (timetableData) {
+        // Try different possible locations for timetable data
+        timetables = 
+          timetableData.timetables || 
+          timetableData.data?.timetables || 
+          timetableData.results || 
+          (Array.isArray(timetableData) ? timetableData : []);
+      }
+
+      console.log('Extracted timetables:', timetables);
+
+      // Validate the timetables data
+      if (!Array.isArray(timetables)) {
+        console.warn('Timetables is not an array, converting:', timetables);
+        timetables = timetables ? [timetables] : [];
+      }
+
+      // Set final progress and results
       setProgress(100);
       setProgressText('Complete!');
-      setGeneratedData(timetableData.timetables || []);
-      
+      setGeneratedData(timetables);
+
+      // Show completion message briefly
       setTimeout(() => {
         setIsProcessing(false);
         setProgress(0);
         setProgressText('');
-      }, 2000);
+        
+        if (timetables.length === 0) {
+          setError('Timetable generation completed but no timetable data was returned. Please check your input file and try again.');
+        }
+      }, 1500);
 
     } catch (err) {
-      setError(err.message || 'An error occurred while generating the timetable');
+      console.error('Timetable generation error:', err);
+      
+      // Handle different error formats
+      let errorMessage = 'An error occurred while generating the timetable';
+      
+      if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
       setIsProcessing(false);
       setProgress(0);
       setProgressText('');
@@ -73,23 +160,56 @@ const TimetableGenerator = () => {
   };
 
   const handleDownload = async (format) => {
-    if (generatedData.length === 0) return;
+    if (!uploadId) {
+      setError('No timetable data available for download - missing upload ID');
+      return;
+    }
+    
+    if (generatedData.length === 0) {
+      setError('No timetable data available for download - no generated data');
+      return;
+    }
+
+    console.log(`Starting download: ${format} format for upload ID: ${uploadId}`);
 
     try {
-      await downloadTimetable(generatedData, format);
+      await downloadTimetable(uploadId, format);
+      console.log('Download completed successfully');
     } catch (err) {
-      setError(err.message || 'An error occurred while downloading');
+      console.error('Download error:', err);
+      
+      let errorMessage = 'An error occurred while downloading';
+      
+      if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     }
   };
 
+  // Debug log for component state
+  console.log('TimetableGenerator state:', {
+    selectedFile: selectedFile?.name,
+    uploadId,
+    isProcessing,
+    progress,
+    generatedDataLength: generatedData.length,
+    error
+  });
+
   return (
     <div className="timetable-generator">
-      <Header 
+      <Header
         onShowInstructions={() => setShowInstructions(true)}
         onDownload={handleDownload}
-        canDownload={generatedData.length > 0}
+        canDownload={generatedData.length > 0 && uploadId && !isProcessing}
       />
-      
+
       <main className="main-container">
         <FileUpload
           selectedFile={selectedFile}
@@ -101,9 +221,23 @@ const TimetableGenerator = () => {
           progressText={progressText}
           error={error}
         />
-        
-        {generatedData.length > 0 && (
+
+        {generatedData.length > 0 && !isProcessing && (
           <TimetableResults timetables={generatedData} />
+        )}
+
+        {error && (
+          <div className="error-message" style={{ 
+            color: '#dc3545', 
+            backgroundColor: '#f8d7da',
+            border: '1px solid #f5c6cb',
+            borderRadius: '4px',
+            padding: '12px',
+            marginTop: '16px',
+            fontSize: '14px'
+          }}>
+            <strong>Error:</strong> {error}
+          </div>
         )}
       </main>
 
