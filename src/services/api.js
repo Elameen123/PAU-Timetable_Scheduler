@@ -1,20 +1,47 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:7860';
+// Determine API base URL based on environment
+const getApiBaseUrl = () => {
+  // For Hugging Face Spaces, use the current domain
+  if (window.location.hostname.includes('hf.space') || window.location.hostname.includes('huggingface.co')) {
+    return window.location.origin;
+  }
+  // For local development
+  return process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:7860';
+};
 
-// Create axios instance with default config
+const API_BASE_URL = getApiBaseUrl();
+
+// Create axios instance with CORS-friendly config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 300000, // 5 minutes timeout for large file processing
+  withCredentials: false, // Important for CORS
   headers: {
-    'Content-Type': 'multipart/form-data',
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
   },
 });
 
-// Add request interceptor for logging
+// Add request interceptor for logging and CORS handling
 apiClient.interceptors.request.use(
   (config) => {
     console.log(`Making ${config.method.toUpperCase()} request to ${config.url}`);
+    
+    // Set appropriate headers for different request types
+    if (config.data instanceof FormData) {
+      // For file uploads, let browser set Content-Type with boundary
+      delete config.headers['Content-Type'];
+    } else if (typeof config.data === 'object' && config.data !== null) {
+      // For JSON data
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
+    // Add CORS headers
+    config.headers['Access-Control-Allow-Origin'] = '*';
+    config.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+    config.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
+    
     return config;
   },
   (error) => {
@@ -34,10 +61,19 @@ apiClient.interceptors.response.use(
     if (error.response) {
       // Server responded with error status
       const { status, data } = error.response;
+      
+      // Handle CORS-specific errors
+      if (status === 0 || error.message.includes('CORS') || error.message.includes('Network Error')) {
+        throw new Error('CORS error: Please ensure the backend is properly configured for cross-origin requests.');
+      }
+      
       const message = data?.message || data?.error || `Server error (${status})`;
       throw new Error(message);
     } else if (error.request) {
       // Request was made but no response received
+      if (error.message.includes('CORS') || error.code === 'ERR_NETWORK') {
+        throw new Error('CORS policy blocked the request. Please check backend CORS configuration.');
+      }
       throw new Error('Unable to connect to the server. Please check your internet connection.');
     } else {
       // Something else happened
@@ -47,7 +83,30 @@ apiClient.interceptors.response.use(
 );
 
 /**
- * Upload file to the server
+ * Make a CORS-safe request with retry logic
+ * @param {Function} requestFn - The axios request function
+ * @param {number} retries - Number of retries
+ */
+const makeRequestWithRetry = async (requestFn, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      if (i === retries - 1) throw error;
+      
+      // If CORS error, wait and retry
+      if (error.message.includes('CORS') || error.message.includes('Network Error')) {
+        console.log(`CORS error, retrying... (${i + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      } else {
+        throw error;
+      }
+    }
+  }
+};
+
+/**
+ * Upload file to the server with CORS handling
  * @param {File} file - The Excel file to upload
  * @returns {Promise<Object>} Response containing file ID and metadata
  */
@@ -59,9 +118,13 @@ export const uploadFile = async (file) => {
   const uploadEndpoint = process.env.REACT_APP_UPLOAD_ENDPOINT || '/upload-excel';
 
   try {
-    const response = await apiClient.post(uploadEndpoint, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    const response = await makeRequestWithRetry(() => 
+      apiClient.post(uploadEndpoint, formData, {
+        headers: {
+          // Let browser set Content-Type for FormData
+        }
+      })
+    );
 
     // Server should return JSON like: { upload_id: "uuid-1234", filename: "...", status: "uploaded" }
     const data = response.data;
@@ -98,9 +161,9 @@ export const generateTimetable = async (uploadId, progressCallback) => {
     };
 
     console.log('Starting timetable generation with:', body);
-    const startResponse = await apiClient.post('/generate-timetable', body, {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const startResponse = await makeRequestWithRetry(() =>
+      apiClient.post('/generate-timetable', body)
+    );
 
     if (startResponse.status !== 202) {
       throw new Error('Failed to start timetable generation');
@@ -118,7 +181,7 @@ export const generateTimetable = async (uploadId, progressCallback) => {
 };
 
 /**
- * Poll the server for generation completion status
+ * Poll the server for generation completion status with CORS handling
  * @param {string} uploadId - Upload ID to check status for
  * @param {Function} progressCallback - Progress update callback
  * @returns {Promise<Object>} Final timetable data
@@ -132,7 +195,9 @@ const pollForCompletion = async (uploadId, progressCallback) => {
       try {
         attempts++;
         
-        const statusResponse = await apiClient.get(`/get-timetable-status/${uploadId}`);
+        const statusResponse = await makeRequestWithRetry(() =>
+          apiClient.get(`/get-timetable-status/${uploadId}`)
+        );
         const statusData = statusResponse.data;
         
         console.log(`Status check ${attempts}:`, statusData.status, statusData.progress);
@@ -197,7 +262,13 @@ const pollForCompletion = async (uploadId, progressCallback) => {
         
       } catch (error) {
         console.error('Status check error:', error);
-        reject(error);
+        
+        // If it's a CORS error, provide helpful message
+        if (error.message.includes('CORS')) {
+          reject(new Error('CORS policy is blocking requests to the backend. Please check the server configuration.'));
+        } else {
+          reject(error);
+        }
       }
     };
 
@@ -207,7 +278,7 @@ const pollForCompletion = async (uploadId, progressCallback) => {
 };
 
 /**
- * Download generated timetable in specified format
+ * Download generated timetable in specified format with CORS handling
  * @param {string} uploadId - The upload ID from the generation process
  * @param {string} format - Download format ('excel', 'pdf')
  * @returns {Promise<void>}
@@ -215,18 +286,17 @@ const pollForCompletion = async (uploadId, progressCallback) => {
 export const downloadTimetable = async (uploadId, format) => {
   try {
     console.log(`Downloading timetable: ${uploadId} in ${format} format`);
-    const response = await apiClient.post(
-      '/export-timetable', // Changed from '/timetable/download'
-      {
-        upload_id: uploadId, // Backend expects upload_id
-        format: format.toLowerCase()
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
+    const response = await makeRequestWithRetry(() =>
+      apiClient.post(
+        '/export-timetable',
+        {
+          upload_id: uploadId,
+          format: format.toLowerCase()
         },
-        responseType: 'blob', // Important for file downloads
-      }
+        {
+          responseType: 'blob', // Important for file downloads
+        }
+      )
     );
 
     // Create blob link to download
@@ -258,7 +328,9 @@ export const downloadTimetable = async (uploadId, format) => {
 export const getTimeSlots = async () => {
   try {
     // Try to get time slots from API first
-    const response = await apiClient.get('/timetable/timeslots');
+    const response = await makeRequestWithRetry(() =>
+      apiClient.get('/timetable/timeslots')
+    );
     return response.data;
   } catch (error) {
     // If API endpoint doesn't exist or fails, return default time slots
@@ -282,7 +354,9 @@ export const getTimeSlots = async () => {
  */
 export const validateFile = async (fileId) => {
   try {
-    const response = await apiClient.post('/timetable/validate', { fileId });
+    const response = await makeRequestWithRetry(() =>
+      apiClient.post('/timetable/validate', { fileId })
+    );
     return response.data;
   } catch (error) {
     throw new Error(`File validation failed: ${error.message}`);
