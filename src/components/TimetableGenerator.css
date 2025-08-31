@@ -4,8 +4,8 @@
   margin: 0 auto;
   padding: 2rem;
   background: #f0f4f8;
-  min-height: calc(100vh - 100px);
-  max-height: 80vh;
+  min-height: 100vh;
+  max-height: auto;
 }
 
 /* Responsive Design */

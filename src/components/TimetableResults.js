@@ -8,6 +8,8 @@ const TimetableResults = ({ timetables = [] }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [timeSlots, setTimeSlots] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+   const [showBackButton, setShowBackButton] = useState(false);
+  
 
   // fetch available timeslots from backend (or defaults)
   useEffect(() => {
@@ -36,6 +38,11 @@ const TimetableResults = ({ timetables = [] }) => {
   useEffect(() => {
     console.log('TimetableResults received:', timetables);
   }, [timetables]);
+
+   // Show back button when search is active
+  useEffect(() => {
+    setShowBackButton(searchQuery.length > 0);
+  }, [searchQuery]);
 
   // filter timetables by dept or year (case insensitive)
   const filtered = timetables.filter((t) => {
@@ -107,14 +114,47 @@ const TimetableResults = ({ timetables = [] }) => {
         <h3 className="results-title">Generated Timetables ({totalSlides})</h3>
       </div>
 
-      {/* Search bar */}
-      <div className="search-bar">
-        <input
-          type="text"
-          placeholder="Search department or year..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+       <div className="results-header">
+        <div className="results-header-left">
+          <div className="results-icon">✓</div>
+          <h3 className="results-title">Generated Timetables</h3>
+        </div>
+        <div className="results-counter">
+          {totalSlides} {totalSlides === 1 ? 'timetable' : 'timetables'}
+        </div>
+      </div>
+
+       {/* Enhanced Search Section */}
+      <div className="search-container">
+        <div className="search-input-wrapper">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search by department, year level, or course..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <span className="search-icon">🔍</span>
+          {searchQuery && (
+            <button 
+              className="clear-search-btn"
+              onClick={() => setSearchQuery('')}
+              type="button"
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        {showBackButton && (
+          <button 
+            className="back-to-all-btn"
+            onClick={() => setSearchQuery('')}
+            type="button"
+          >
+            ← Show All Timetables
+          </button>
+        )}
       </div>
 
       <div className="carousel-container">
