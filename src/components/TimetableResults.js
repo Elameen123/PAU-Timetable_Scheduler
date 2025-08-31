@@ -109,11 +109,6 @@ const TimetableResults = ({ timetables = [] }) => {
 
   return (
     <section className="results-section">
-      <div className="results-header">
-        <div className="results-icon">✓</div>
-        <h3 className="results-title">Generated Timetables ({totalSlides})</h3>
-      </div>
-
        <div className="results-header">
         <div className="results-header-left">
           <div className="results-icon">✓</div>
@@ -168,18 +163,24 @@ const TimetableResults = ({ timetables = [] }) => {
                 <div className="timetable-card">
                   <div className="timetable-header">
                     <h3 className="timetable-title">
-                      {timetable.title || `Timetable ${idx + 1}`}
+                      {timetable.title || `${timetable.department} - Year ${timetable.level}`}
                     </h3>
+                    
                     <div className="timetable-meta">
-                      <span className="department">{timetable.department || 'Unknown Dept'}</span>
-                      <span className="level">{timetable.level || 'Unknown Level'}</span>
+                      {timetable.department && (
+                        <div className="meta-item department">{timetable.department}</div>
+                      )}
+                      {timetable.level && (
+                        <div className="meta-item level">Year {timetable.level}</div>
+                      )}
                       {timetable.student_count > 0 && (
-                        <span className="student-count">{timetable.student_count} students</span>
+                        <div className="meta-item student-count">{timetable.student_count} students</div>
                       )}
                     </div>
+                    
                     {timetable.total_courses > 0 && (
                       <div className="course-summary">
-                        {timetable.total_courses} courses, {timetable.total_hours_scheduled} hours scheduled
+                        {timetable.total_courses} courses • {timetable.total_hours_scheduled} hours scheduled
                       </div>
                     )}
                   </div>
