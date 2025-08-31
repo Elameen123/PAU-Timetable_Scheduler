@@ -1,7 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import './InstructionsModal.css';
 
 const InstructionsModal = ({ isOpen, onClose }) => {
+  const modalRef = useRef(null);
+  const firstFocusableRef = useRef(null);
+
   useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
@@ -11,12 +14,19 @@ const InstructionsModal = ({ isOpen, onClose }) => {
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+      
+      // Focus management
+      if (firstFocusableRef.current) {
+        firstFocusableRef.current.focus();
+      }
+    } else {
+      document.body.classList.remove('modal-open');
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.body.classList.remove('modal-open');
     };
   }, [isOpen, onClose]);
 
@@ -26,13 +36,44 @@ const InstructionsModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // Focus trap
+  const handleKeyDown = (event) => {
+    if (event.key === 'Tab') {
+      const focusableElements = modalRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements?.[0];
+      const lastElement = focusableElements?.[focusableElements.length - 1];
+
+      if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement?.focus();
+      }
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement?.focus();
+      }
+    }
+  };
+
   if (!isOpen) {
     return null;
   }
 
   return (
-    <div className="modal" onClick={handleBackdropClick}>
-      <div className="modal-content" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+    <div 
+      className="modal" 
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+    >
+      <div 
+        className="modal-content" 
+        ref={modalRef}
+        role="dialog" 
+        aria-labelledby="modal-title" 
+        aria-modal="true"
+      >
         <div className="modal-header">
           <h3 id="modal-title" className="modal-title">
             How to Use the Timetable Generator
@@ -42,59 +83,113 @@ const InstructionsModal = ({ isOpen, onClose }) => {
             onClick={onClose}
             aria-label="Close modal"
             type="button"
+            ref={firstFocusableRef}
           >
             &times;
           </button>
         </div>
         
         <div className="modal-body">
-          <div className="instruction-step">
-            <h4>Step 1: Upload Excel File</h4>
-            <p>
-              Upload your Excel file containing course data, including subjects, 
-              lecturers, rooms, and time preferences. The file should be in .xlsx or .xls format 
-              and not exceed 10MB.
-            </p>
-          </div>
-          
-          <div className="instruction-step">
-            <h4>Step 2: Generate Timetable</h4>
-            <p>
-              Click the "Generate Timetable" button to process your data and create 
-              optimized schedules. The system will validate your data and generate 
-              conflict-free timetables.
-            </p>
-          </div>
-          
-          <div className="instruction-step">
-            <h4>Step 3: Review Results</h4>
-            <p>
-              Browse through the generated timetables for each department and year 
-              using the carousel navigation. Each timetable shows course schedules 
-              with assigned time slots and rooms.
-            </p>
-          </div>
-          
-          <div className="instruction-step">
-            <h4>Step 4: Download</h4>
-            <p>
-              Export your timetables in Excel, PDF, or Image format using the 
-              download buttons in the header. Choose the format that best suits 
-              your needs.
-            </p>
-          </div>
-          
-          <div className="instruction-step">
-            <h4>Excel File Format Requirements:</h4>
-            <ul>
-              <li><strong>Course Code:</strong> Unique identifier for each course</li>
-              <li><strong>Course Title:</strong> Full name of the course</li>
-              <li><strong>Lecturer:</strong> Instructor assigned to the course</li>
-              <li><strong>Duration:</strong> Length of each class session</li>
-              <li><strong>Level:</strong> Academic year (100, 200, 300, 400)</li>
-              <li><strong>Department:</strong> Academic department</li>
-              <li><strong>Room Preferences:</strong> Preferred classroom types</li>
-            </ul>
+          <div className="instructions-grid">
+            {/* Left Column - Step by Step Instructions */}
+            <div className="instructions-steps">
+              <div className="instruction-step">
+                <h4>Upload Excel File</h4>
+                <p>
+                  Select and upload your Excel file containing course data. 
+                  The file should include subjects, lecturers, rooms, and time preferences. 
+                  Supported formats are .xlsx and .xls with a maximum size of 10MB.
+                </p>
+              </div>
+              
+              <div className="instruction-step">
+                <h4>Generate Timetable</h4>
+                <p>
+                  Click "Generate Timetable" to process your data. The system will 
+                  validate your information and create optimized, conflict-free schedules 
+                  for all departments and year levels.
+                </p>
+              </div>
+              
+              <div className="instruction-step">
+                <h4>Review & Navigate</h4>
+                <p>
+                  Browse through generated timetables using the carousel controls. 
+                  You can swipe on touch devices, use arrow keys, or click navigation buttons. 
+                  Use the search feature to find specific departments or years.
+                </p>
+              </div>
+              
+              <div className="instruction-step">
+                <h4>Download Results</h4>
+                <p>
+                  Export your timetables in Excel, PDF, or Image format using the 
+                  download menu in the header. Each format is optimized for different 
+                  use cases - sharing, printing, or archiving.
+                </p>
+              </div>
+            </div>
+
+            {/* Right Column - File Requirements */}
+            <div className="requirements-panel">
+              <div className="requirements-header">
+                <h4>Excel File Requirements</h4>
+                <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0, lineHeight: 1.5 }}>
+                  Your Excel file must contain the following columns with proper data formatting:
+                </p>
+              </div>
+
+              <ul className="requirements-list">
+                <li className="requirement-item">
+                  <span className="requirement-label">Course Code</span>
+                  <p className="requirement-description">
+                    Unique identifier for each course (e.g., CSC101, MTH201)
+                  </p>
+                </li>
+                
+                <li className="requirement-item">
+                  <span className="requirement-label">Course Title</span>
+                  <p className="requirement-description">
+                    Full descriptive name of the course
+                  </p>
+                </li>
+                
+                <li className="requirement-item">
+                  <span className="requirement-label">Lecturer</span>
+                  <p className="requirement-description">
+                    Name of the instructor assigned to teach the course
+                  </p>
+                </li>
+                
+                <li className="requirement-item">
+                  <span className="requirement-label">Duration</span>
+                  <p className="requirement-description">
+                    Length of each class session (in hours, e.g., 1, 2, 3)
+                  </p>
+                </li>
+                
+                <li className="requirement-item">
+                  <span className="requirement-label">Level/Year</span>
+                  <p className="requirement-description">
+                    Academic year level (100, 200, 300, 400, etc.)
+                  </p>
+                </li>
+                
+                <li className="requirement-item">
+                  <span className="requirement-label">Department</span>
+                  <p className="requirement-description">
+                    Academic department or faculty name
+                  </p>
+                </li>
+                
+                <li className="requirement-item">
+                  <span className="requirement-label">Room Type</span>
+                  <p className="requirement-description">
+                    Preferred classroom type (Lecture Hall, Lab, etc.)
+                  </p>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
