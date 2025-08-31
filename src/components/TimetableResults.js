@@ -8,8 +8,7 @@ const TimetableResults = ({ timetables = [] }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [timeSlots, setTimeSlots] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-   const [showBackButton, setShowBackButton] = useState(false);
-  
+  const [showBackButton, setShowBackButton] = useState(false);
 
   // fetch available timeslots from backend (or defaults)
   useEffect(() => {
@@ -39,7 +38,7 @@ const TimetableResults = ({ timetables = [] }) => {
     console.log('TimetableResults received:', timetables);
   }, [timetables]);
 
-   // Show back button when search is active
+  // Show back button when search is active
   useEffect(() => {
     setShowBackButton(searchQuery.length > 0);
   }, [searchQuery]);
@@ -59,19 +58,76 @@ const TimetableResults = ({ timetables = [] }) => {
     }
   }, [totalSlides, currentSlide]);
 
+  // Function to clear search and return to all timetables
+  const clearSearch = () => {
+    setSearchQuery('');
+    setCurrentSlide(0);
+  };
+
   if (totalSlides === 0) {
     return (
       <section className="results-section">
         <div className="results-header">
-          <div className="results-icon">!</div>
-          <h3 className="results-title">No Timetables Found</h3>
+          <div className="results-header-left">
+            <div className="results-icon">!</div>
+            <h3 className="results-title">No Timetables Found</h3>
+          </div>
         </div>
-        {searchQuery && (
-          <p>No timetables match your search for "{searchQuery}"</p>
-        )}
-        {!searchQuery && (
-          <p>No timetable data available</p>
-        )}
+
+        {/* Search section - also show in no results case */}
+        <div className="search-container">
+          <div className="search-input-wrapper">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search by department, year level, or course..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <span className="search-icon">🔍</span>
+            {searchQuery && (
+              <button 
+                className="clear-search-btn"
+                onClick={clearSearch}
+                type="button"
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {showBackButton && (
+            <button 
+              className="back-to-all-btn"
+              onClick={clearSearch}
+              type="button"
+            >
+              ← Show All Timetables
+            </button>
+          )}
+        </div>
+
+        {/* No results message */}
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          {searchQuery ? (
+            <div>
+              <p style={{ marginBottom: '1rem', color: '#6b7280' }}>
+                No timetables match your search for <strong>"{searchQuery}"</strong>
+              </p>
+              {/* Additional back button in the message area for better UX */}
+              <button 
+                className="back-to-all-btn"
+                onClick={clearSearch}
+                type="button"
+                style={{ margin: '0 auto' }}
+              >
+                ← View All {timetables.length} Timetables
+              </button>
+            </div>
+          ) : (
+            <p style={{ color: '#6b7280' }}>No timetable data available</p>
+          )}
+        </div>
       </section>
     );
   }
@@ -109,17 +165,25 @@ const TimetableResults = ({ timetables = [] }) => {
 
   return (
     <section className="results-section">
-       <div className="results-header">
+      <div className="results-header">
         <div className="results-header-left">
           <div className="results-icon">✓</div>
           <h3 className="results-title">Generated Timetables</h3>
         </div>
         <div className="results-counter">
-          {totalSlides} {totalSlides === 1 ? 'timetable' : 'timetables'}
+          {searchQuery ? (
+            <>
+              {totalSlides} of {timetables.length} {totalSlides === 1 ? 'timetable' : 'timetables'}
+            </>
+          ) : (
+            <>
+              {totalSlides} {totalSlides === 1 ? 'timetable' : 'timetables'}
+            </>
+          )}
         </div>
       </div>
 
-       {/* Enhanced Search Section */}
+      {/* Enhanced Search Section */}
       <div className="search-container">
         <div className="search-input-wrapper">
           <input
@@ -133,7 +197,7 @@ const TimetableResults = ({ timetables = [] }) => {
           {searchQuery && (
             <button 
               className="clear-search-btn"
-              onClick={() => setSearchQuery('')}
+              onClick={clearSearch}
               type="button"
               aria-label="Clear search"
             >
@@ -144,7 +208,7 @@ const TimetableResults = ({ timetables = [] }) => {
         {showBackButton && (
           <button 
             className="back-to-all-btn"
-            onClick={() => setSearchQuery('')}
+            onClick={clearSearch}
             type="button"
           >
             ← Show All Timetables
