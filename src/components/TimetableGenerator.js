@@ -5,6 +5,7 @@ import TimetableResults from './TimetableResults';
 import InstructionsModal from './InstructionsModal';
 import { uploadFile, generateTimetable, downloadTimetable } from '../services/api.js';
 import './TimetableGenerator.css';
+import Footer from './Footer.js';
 
 const TimetableGenerator = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -104,15 +105,44 @@ const TimetableGenerator = () => {
 
       // Extract timetables from response - handle different response formats
       let timetables = [];
-      
+
+      console.log('=== TIMETABLE DATA EXTRACTION ===');
+      console.log('Full response:', timetableData);
+
       if (timetableData) {
-        // Try different possible locations for timetable data
-        timetables = 
-          timetableData.timetables || 
-          timetableData.data?.timetables || 
-          timetableData.results || 
-          (Array.isArray(timetableData) ? timetableData : []);
+        console.log('Response keys:', Object.keys(timetableData));
+        
+        // Try different sources in order of preference
+        if (Array.isArray(timetableData.timetables) && timetableData.timetables.length > 0) {
+          timetables = timetableData.timetables;
+          console.log('Using timetables array:', timetables.length, 'items');
+        } else if (Array.isArray(timetableData.timetables_raw) && timetableData.timetables_raw.length > 0) {
+          timetables = timetableData.timetables_raw;
+          console.log('Using timetables_raw array:', timetables.length, 'items');
+        } else if (timetableData.data?.timetables) {
+          timetables = timetableData.data.timetables;
+          console.log('Using data.timetables');
+        } else if (Array.isArray(timetableData)) {
+          timetables = timetableData;
+          console.log('Using root array');
+        } else {
+          console.log('No valid timetable array found');
+          timetables = [];
+        }
+        
+        // Validate structure
+        if (timetables.length > 0) {
+          console.log('First timetable structure:', {
+            type: typeof timetables[0],
+            keys: Object.keys(timetables[0] || {}),
+            hasStudentGroup: !!timetables[0]?.studentGroup || !!timetables[0]?.student_group,
+            hasRows: !!timetables[0]?.rows || !!timetables[0]?.timetable
+          });
+        }
       }
+
+      console.log('Final timetables count:', timetables.length);
+      console.log('===========================');
 
       console.log('Extracted timetables:', timetables);
 
@@ -222,8 +252,14 @@ const TimetableGenerator = () => {
           error={error}
         />
 
+
         {generatedData.length > 0 && !isProcessing && (
-          <TimetableResults timetables={generatedData} />
+          <TimetableResults 
+            timetables={generatedData} 
+            uploadId={uploadId}                    // Required for Dash
+            enableDashIntegration={true}           // Enable Dash features
+            loading={isProcessing}
+          />
         )}
 
         {error && (
@@ -245,6 +281,8 @@ const TimetableGenerator = () => {
         isOpen={showInstructions}
         onClose={() => setShowInstructions(false)}
       />
+
+      <Footer/>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+// api.js - Enhanced with interactive editor endpoints
 import axios from 'axios';
 
 // Determine API base URL based on environment
@@ -12,18 +13,18 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Create axios instance with CORS-friendly config
+// Create axios instance with simplified config (CORS handled by backend)
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 300000, // 5 minutes timeout for large file processing
-  withCredentials: false, // Important for CORS
+  timeout: 1000000, // 5 minutes timeout for large file processing
+  withCredentials: false,
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   },
 });
 
-// Add request interceptor for logging and CORS handling
+// Add request interceptor for logging only
 apiClient.interceptors.request.use(
   (config) => {
     console.log(`Making ${config.method.toUpperCase()} request to ${config.url}`);
@@ -36,11 +37,6 @@ apiClient.interceptors.request.use(
       // For JSON data
       config.headers['Content-Type'] = 'application/json';
     }
-    
-    // Add CORS headers
-    config.headers['Access-Control-Allow-Origin'] = '*';
-    config.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-    config.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
     
     return config;
   },
@@ -62,17 +58,17 @@ apiClient.interceptors.response.use(
       // Server responded with error status
       const { status, data } = error.response;
       
-      // Handle CORS-specific errors
-      if (status === 0 || error.message.includes('CORS') || error.message.includes('Network Error')) {
-        throw new Error('CORS error: Please ensure the backend is properly configured for cross-origin requests.');
+      // Handle network errors
+      if (status === 0 || error.message.includes('Network Error')) {
+        throw new Error('Network error: Please ensure the backend server is running and accessible.');
       }
       
       const message = data?.message || data?.error || `Server error (${status})`;
       throw new Error(message);
     } else if (error.request) {
       // Request was made but no response received
-      if (error.message.includes('CORS') || error.code === 'ERR_NETWORK') {
-        throw new Error('CORS policy blocked the request. Please check backend CORS configuration.');
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('Network error: Please check backend server status.');
       }
       throw new Error('Unable to connect to the server. Please check your internet connection.');
     } else {
@@ -83,7 +79,7 @@ apiClient.interceptors.response.use(
 );
 
 /**
- * Make a CORS-safe request with retry logic
+ * Make a request with retry logic
  * @param {Function} requestFn - The axios request function
  * @param {number} retries - Number of retries
  */
@@ -94,9 +90,9 @@ const makeRequestWithRetry = async (requestFn, retries = 3) => {
     } catch (error) {
       if (i === retries - 1) throw error;
       
-      // If CORS error, wait and retry
-      if (error.message.includes('CORS') || error.message.includes('Network Error')) {
-        console.log(`CORS error, retrying... (${i + 1}/${retries})`);
+      // If network error, wait and retry
+      if (error.message.includes('Network Error')) {
+        console.log(`Network error, retrying... (${i + 1}/${retries})`);
         await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
       } else {
         throw error;
@@ -106,7 +102,7 @@ const makeRequestWithRetry = async (requestFn, retries = 3) => {
 };
 
 /**
- * Upload file to the server with CORS handling
+ * Upload file to the server
  * @param {File} file - The Excel file to upload
  * @returns {Promise<Object>} Response containing file ID and metadata
  */
@@ -181,14 +177,16 @@ export const generateTimetable = async (uploadId, progressCallback) => {
 };
 
 /**
- * Poll the server for generation completion status with CORS handling
+ * Poll the server for generation completion status
  * @param {string} uploadId - Upload ID to check status for
  * @param {Function} progressCallback - Progress update callback
  * @returns {Promise<Object>} Final timetable data
  */
 const pollForCompletion = async (uploadId, progressCallback) => {
-  const maxAttempts = 120; // 10 minutes with 5-second intervals
+  const maxAttempts = 300; // Increased from 120 to 300 (25 minutes with 5-second intervals)
   let attempts = 0;
+  let consecutiveErrors = 0;
+  const maxConsecutiveErrors = 5;
 
   return new Promise((resolve, reject) => {
     const checkStatus = async () => {
@@ -200,13 +198,16 @@ const pollForCompletion = async (uploadId, progressCallback) => {
         );
         const statusData = statusResponse.data;
         
-        console.log(`Status check ${attempts}:`, statusData.status, statusData.progress);
+        console.log(`Status check ${attempts}/${maxAttempts}:`, statusData.status, `${statusData.progress || 0}%`);
+        
+        // Reset consecutive errors on successful request
+        consecutiveErrors = 0;
         
         // Update progress if callback provided
         if (progressCallback) {
           progressCallback({
             percentage: statusData.progress || 0,
-            message: statusData.message || 'Processing...'
+            message: statusData.message || `Processing... (${attempts}/${maxAttempts})`
           });
         }
 
@@ -248,27 +249,48 @@ const pollForCompletion = async (uploadId, progressCallback) => {
         if (statusData.status === 'processing') {
           // Still processing, continue polling
           if (attempts >= maxAttempts) {
-            reject(new Error('Generation timeout - please try again'));
+            reject(new Error(`Generation timeout after ${Math.round(maxAttempts * 5 / 60)} minutes. The process may still be running in the background.`));
             return;
           }
           
-          // Poll again in 5 seconds
-          setTimeout(checkStatus, 5000);
+          // Use adaptive polling interval based on progress
+          let pollInterval = 5000; // Default 5 seconds
+          const progress = statusData.progress || 0;
+          
+          if (progress < 10) {
+            pollInterval = 3000; // 3 seconds for early stages
+          } else if (progress > 80) {
+            pollInterval = 2000; // 2 seconds for final stages
+          }
+          
+          // Poll again after interval
+          setTimeout(checkStatus, pollInterval);
           return;
         }
         
-        // Unknown status
-        reject(new Error(`Unknown status: ${statusData.status}`));
+        // Unknown status - treat as processing and continue
+        console.warn(`Unknown status: ${statusData.status}, continuing...`);
+        setTimeout(checkStatus, 5000);
         
       } catch (error) {
         console.error('Status check error:', error);
+        consecutiveErrors++;
+        
+        // If too many consecutive errors, give up
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          reject(new Error(`Connection lost after ${maxConsecutiveErrors} consecutive errors. Please check your internet connection and try again.`));
+          return;
+        }
         
         // If it's a CORS error, provide helpful message
         if (error.message.includes('CORS')) {
           reject(new Error('CORS policy is blocking requests to the backend. Please check the server configuration.'));
-        } else {
-          reject(error);
+          return;
         }
+        
+        // For other errors, retry after a longer delay
+        console.log(`Retrying status check in 10 seconds... (consecutive errors: ${consecutiveErrors}/${maxConsecutiveErrors})`);
+        setTimeout(checkStatus, 10000);
       }
     };
 
@@ -278,7 +300,7 @@ const pollForCompletion = async (uploadId, progressCallback) => {
 };
 
 /**
- * Download generated timetable in specified format with CORS handling
+ * Download generated timetable in specified format
  * @param {string} uploadId - The upload ID from the generation process
  * @param {string} format - Download format ('excel', 'pdf')
  * @returns {Promise<void>}
@@ -329,7 +351,7 @@ export const getTimeSlots = async () => {
   try {
     // Try to get time slots from API first
     const response = await makeRequestWithRetry(() =>
-      apiClient.get('/timetable/timeslots')
+      apiClient.get('/timeslots')
     );
     return response.data;
   } catch (error) {
@@ -360,6 +382,110 @@ export const validateFile = async (fileId) => {
     return response.data;
   } catch (error) {
     throw new Error(`File validation failed: ${error.message}`);
+  }
+};
+
+// ===== NEW INTERACTIVE EDITOR API FUNCTIONS =====
+
+/**
+ * Create interactive editing session
+ * @param {string} uploadId - ID of the uploaded/generated timetable
+ * @returns {Promise<Object>} Session details including Dash URL
+ */
+export const createInteractiveSession = async (uploadId) => {
+  try {
+    console.log('Creating interactive session for uploadId:', uploadId);
+    const response = await makeRequestWithRetry(() =>
+      apiClient.post('/create-interactive-session', {
+        uploadId,
+      })
+    );
+    
+    console.log('Interactive session created:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Interactive session creation error:', error);
+    const msg = error?.response?.data?.error || error.message || 'Failed to create interactive session';
+    throw new Error(`Interactive session creation failed: ${msg}`);
+  }
+};
+
+/**
+ * Save changes from interactive editor
+ * @param {string} uploadId - Upload ID
+ * @param {Array} updatedTimetables - Modified timetable data from Dash editor
+ * @returns {Promise<Object>} Save confirmation
+ */
+export const saveInteractiveChanges = async (uploadId, updatedTimetables) => {
+  try {
+    console.log('Saving interactive changes for uploadId:', uploadId);
+    const response = await makeRequestWithRetry(() =>
+      apiClient.post('/save-interactive-changes', {
+        uploadId,
+        updatedTimetables,
+      })
+    );
+    
+    console.log('Interactive changes saved successfully');
+    return response.data;
+  } catch (error) {
+    console.error('Save interactive changes error:', error);
+    const msg = error?.response?.data?.error || error.message || 'Failed to save changes';
+    throw new Error(`Save changes failed: ${msg}`);
+  }
+};
+
+/**
+ * Get interactive session status
+ * @param {string} sessionId - Session identifier
+ * @returns {Promise<Object>} Session status and details
+ */
+export const getInteractiveSessionStatus = async (sessionId) => {
+  try {
+    const response = await makeRequestWithRetry(() =>
+      apiClient.get(`/interactive-session/${sessionId}/status`)
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Interactive session status error:', error);
+    throw new Error(`Failed to get session status: ${error.message}`);
+  }
+};
+
+/**
+ * Close/cleanup interactive session
+ * @param {string} sessionId - Session identifier
+ * @returns {Promise<Object>} Cleanup confirmation
+ */
+export const closeInteractiveSession = async (sessionId) => {
+  try {
+    console.log('Closing interactive session:', sessionId);
+    const response = await makeRequestWithRetry(() =>
+      apiClient.delete(`/interactive-session/${sessionId}`)
+    );
+    
+    console.log('Interactive session closed successfully');
+    return response.data;
+  } catch (error) {
+    console.warn('Failed to close interactive session (may have already closed):', error.message);
+    // Don't throw error for cleanup operations
+    return { status: 'closed' };
+  }
+};
+
+/**
+ * Check if interactive editor is available
+ * @returns {Promise<boolean>} Whether interactive editor features are available
+ */
+export const checkInteractiveEditorAvailability = async () => {
+  try {
+    const response = await makeRequestWithRetry(() =>
+      apiClient.get('/interactive-editor/health')
+    );
+    return response.data.available || false;
+  } catch (error) {
+    console.warn('Interactive editor not available:', error.message);
+    return false;
   }
 };
 
