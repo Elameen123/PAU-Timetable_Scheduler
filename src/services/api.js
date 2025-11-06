@@ -191,7 +191,7 @@ export const generateTimetable = async (uploadId, progressCallback, options) => 
  * @returns {Promise<Object>} Final timetable data
  */
 const pollForCompletion = async (uploadId, progressCallback) => {
-  const maxAttempts = 120; // 10 minutes with 5-second intervals
+  const maxAttempts = 360; // 10 minutes with 5-second intervals
   let attempts = 0;
 
   return new Promise((resolve, reject) => {
@@ -347,6 +347,8 @@ export const getTimeSlots = async () => {
       { start: '14:00', end: '15:00', label: '2:00 PM' },
       { start: '15:00', end: '16:00', label: '3:00 PM' },
       { start: '16:00', end: '17:00', label: '4:00 PM' },
+      { start: '17:00', end: '18:00', label: '5:00 PM' },
+      { start: '18:00', end: '19:00', label: '6:00 PM' },
     ];
   }
 };
