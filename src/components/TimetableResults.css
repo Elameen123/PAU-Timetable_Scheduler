@@ -1,22 +1,33 @@
 /* Results Section */
 .results-section {
-  margin-top: 2rem;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   border: 2px solid #d1d5db;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1), 
+              inset -1px -1px 3px rgba(255,255,255,0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.results-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
 }
 
 .results-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
+  align-items: center;
   margin-bottom: 1.5rem;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .results-header-left {
@@ -26,400 +37,83 @@
 }
 
 .results-icon {
-  width: 28px;
-  height: 28px;
-  background: linear-gradient(135deg, #059669, #10b981);
+  width: 24px;
+  height: 24px;
+  background: #10b981;
   color: white;
-  border-radius: 6px;
+  border-radius: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: bold;
-  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
 }
 
 .results-title {
-  color: #374151;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
+  color: #374151;
   margin: 0;
 }
 
-.results-counter {
-  background: #f0f9ff;
-  color: #0369a1;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  border: 1px solid #bae6fd;
-}
-
-/* Enhanced Search Bar */
-.search-container {
-  position: relative;
+.results-header-right {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
 }
 
-.search-input-wrapper {
-  position: relative;
-  flex: 1;
-  min-width: 280px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  background: white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.search-icon {
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  font-size: 1.1rem;
-}
-
-.clear-search-btn {
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
-  font-size: 1.2rem;
-  opacity: 0;
-  transition: all 0.2s ease;
-}
-
-.search-input:not(:placeholder-shown) + .search-icon + .clear-search-btn {
-  opacity: 1;
-}
-
-.clear-search-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.back-to-all-btn {
-  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-  color: #374151;
-  border: 1px solid #d1d5db;
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  white-space: nowrap;
-}
-
-.back-to-all-btn:hover {
-  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-  border-color: #9ca3af;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.carousel-container {
-  position: relative;
-  max-width: 100%;
-  margin: 0;
-}
-
-.carousel-wrapper {
-  overflow: hidden;
-  border: 1px solid #d1d5db;
-  border-radius: 2px;
-  background: white;
-  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.05);
-}
-
-.carousel-slides {
-  display: flex;
-  transition: transform 0.3s ease;
-}
-
-.carousel-slide {
-  min-width: 100%;
-  flex-shrink: 0;
-}
-
-/* Timetable Card */
-.timetable-card {
-  padding: 2rem;
-  background: white;
-  min-height: 500px;
-}
-
-.timetable-header {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.timetable-title {
-  font-size: 1.3rem;
-  color: #1e40af;
-  margin-bottom: 1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.timetable-title::before {
-  content: '📅';
-  font-size: 1.1rem;
-}
-
-.timetable-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: white;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.department {
-  color: #059669;
-  font-weight: 600;
-}
-
-.department::before {
-  content: '🏢';
-}
-
-.level {
-  color: #dc2626;
-  font-weight: 600;
-}
-
-.level::before {
-  content: '🎓';
-}
-
-.student-count {
-  color: #7c3aed;
-  font-weight: 600;
-}
-
-.student-count::before {
-  content: '👥';
-}
-
-.course-summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #6b7280;
-  font-size: 0.9rem;
-  padding: 0.75rem 1rem;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-}
-
-.course-summary::before {
-  content: '📊';
-}
-
-.preview-note {
-  margin-top: 0.75rem;
-  font-style: italic;
-  color: #9ca3af;
-  font-size: 0.8rem;
-  text-align: center;
-}
-
-.carousel-nav {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.nav-btn {
+.open-dash-btn {
   background: linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%);
   color: #374151;
   border: 1px solid #d1d5db;
-  width: 32px;
-  height: 32px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   border-radius: 2px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  font-weight: bold;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
-.nav-btn:hover:not(:disabled) {
+.open-dash-btn:hover {
   background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
   border-color: #9ca3af;
 }
 
-.nav-btn:active:not(:disabled) {
+.open-dash-btn:active {
   background: linear-gradient(180deg, #e5e7eb 0%, #d1d5db 100%);
   box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
 }
 
-.nav-btn:disabled {
-  background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
-  color: #d1d5db;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.carousel-indicators {
-  display: flex;
-  justify-content: center;
-  gap: 0.25rem;
-  margin-top: 0.75rem;
-}
-
-.indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 1px;
-  background: #d1d5db;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid #9ca3af;
-}
-
-.indicator.active {
-  background: #3b82f6;
-  border-color: #1d4ed8;
-}
-
-.indicator:hover {
-  background: #9ca3af;
-}
-
-.indicator:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* Calendar Grid */
-.calendar-grid {
-  display: grid;
-  grid-template-columns: 120px repeat(5, 1fr);
+.iframe-container {
+  width: 100%;
+  height: 80vh;
   border: 1px solid #d1d5db;
   border-radius: 4px;
   overflow: hidden;
-  margin-top: 1rem;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1);
+  background: white;
 }
 
-.calendar-header {
-  display: contents;
-}
-
-.time-col-header,
-.day-col-header {
-  background: #f3f4f6;
-  font-weight: 600;
-  font-size: 0.85rem;
-  text-align: center;
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-}
-
-.calendar-row {
-  display: contents;
-}
-
-.time-col {
-  background: #f9fafb;
-  font-weight: 500;
-  font-size: 0.8rem;
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  text-align: center;
-}
-
-.calendar-cell {
-  min-height: 60px;
-  border: 1px solid #e5e7eb;
-  padding: 0.25rem;
-  font-size: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.calendar-cell .course {
-  font-weight: 600;
-  color: #1e3a8a;
-}
-
-.calendar-cell .room {
-  color: #6b7280;
-  font-size: 0.7rem;
-}
-
-.calendar-cell .lecturer {
-  color: #374151;
-  font-size: 0.7rem;
+.timetable-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .timetable-info {
-    grid-template-columns: 1fr;
-    gap: 0.25rem;
+  .results-section {
+    padding: 2rem 1rem;
   }
 
-  .info-label {
-    font-size: 0.8rem;
-    margin-bottom: 0.1rem;
+  .results-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
   }
 
-  .info-value {
-    font-size: 0.85rem;
-    margin-bottom: 0.5rem;
+  .iframe-container {
+    height: 70vh;
   }
 }
 
