@@ -7,9 +7,9 @@ const getApiBaseUrl = () => {
     return '';
   }
   // Always prefer explicit env override if provided
-  if (process.env.REACT_APP_API_BASE_URL) return process.env.REACT_APP_API_BASE_URL;
-  // Default to local Flask backend
-  return 'http://localhost:7860';
+   if (process.env.REACT_APP_API_BASE_URL) return process.env.REACT_APP_API_BASE_URL;
+  // On hosting platforms (like hf.space), use relative URLs by default
+  return '';
 };
 
 const API_BASE_URL = getApiBaseUrl();
