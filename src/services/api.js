@@ -152,8 +152,8 @@ export const generateTimetable = async (uploadId, progressCallback, options) => 
     const body = {
       upload_id: uploadId,
       config: {
-        population_size: Number(process.env.REACT_APP_DE_POP_SIZE) || 50,
-        max_generations: Number(process.env.REACT_APP_DE_MAX_GENS) || 40,
+        population_size: Number(process.env.REACT_APP_DE_POP_SIZE) || 25,
+        max_generations: Number(process.env.REACT_APP_DE_MAX_GENS) || 10,
         F: Number(process.env.REACT_APP_DE_F) || 0.4,
         CR: Number(process.env.REACT_APP_DE_CR) || 0.9
       }
@@ -191,7 +191,7 @@ export const generateTimetable = async (uploadId, progressCallback, options) => 
  * @returns {Promise<Object>} Final timetable data
  */
 const pollForCompletion = async (uploadId, progressCallback) => {
-  const maxAttempts = 360; // 10 minutes with 5-second intervals
+  const maxAttempts = 120; // 10 minutes with 5-second intervals
   let attempts = 0;
 
   return new Promise((resolve, reject) => {
