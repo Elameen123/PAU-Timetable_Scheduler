@@ -49,15 +49,15 @@ const InstructionsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleDownloadTemplate = () => {
-    // Create a link to download the template file
-    const link = document.createElement('a');
-    link.href = '/Timetable_Input_Template.xlsx';
-    link.download = 'Timetable_Input_Template.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // const handleDownloadTemplate = () => {
+  //   // Create a link to download the template file
+  //   const link = document.createElement('a');
+  //   link.href = '/Timetable_Input_Template.xlsx';
+  //   link.download = 'Timetable_Input_Template.xlsx';
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  // };
 
   const handleImageClick = (imageName) => {
     setExpandedImage(imageName);
@@ -147,9 +147,13 @@ const InstructionsModal = ({ isOpen, onClose }) => {
                 <div className="template-download">
                   <h4>Download Template File</h4>
                   <p>Use our pre-formatted template to ensure compatibility:</p>
-                  <button className="download-template-btn" onClick={handleDownloadTemplate}>
-                    Download Timetable_Input_Template.xlsx
-                  </button>
+                  <a
+                  href="/Timetable_Input_Template.xlsx"
+                  download="Timetable_Input_Template.xlsx" // The 'download' attribute is key
+                  className="download-template-btn"
+                >
+                  Download Timetable_Input_Template.xlsx
+                </a>
                 </div>
 
                 <div className="sheet-requirements">
