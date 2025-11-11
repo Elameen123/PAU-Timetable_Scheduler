@@ -52,7 +52,7 @@ const InstructionsModal = ({ isOpen, onClose }) => {
   const handleDownloadTemplate = () => {
     // Create a link to download the template file
     const link = document.createElement('a');
-    link.href = '/api/download-template';
+    link.href = '/Timetable_Input_Template.xlsx';
     link.download = 'Timetable_Input_Template.xlsx';
     document.body.appendChild(link);
     link.click();
