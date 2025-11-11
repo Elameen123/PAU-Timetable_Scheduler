@@ -59,6 +59,7 @@ const InstructionsModal = ({ isOpen, onClose }) => {
   //   document.body.removeChild(link);
   // };
 
+  //Changes made
   const handleImageClick = (imageName) => {
     setExpandedImage(imageName);
   };
