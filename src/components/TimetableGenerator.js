@@ -221,6 +221,8 @@ const TimetableGenerator = () => {
     }
   };
 
+  console.log('Rendering TimetableGenerator component', handleDownload);
+
   // Debug log for component state
   console.log('TimetableGenerator state:', {
     selectedFile: selectedFile?.name,
