@@ -70,7 +70,7 @@ const InstructionsModal = ({ isOpen, onClose }) => {
     <div className="modal" onClick={handleOverlayClick}>
       <div className="modal-content" ref={modalRef} tabIndex="-1">
         <div className="modal-header">
-          <h2 className="modal-title">How to Use PAU Timetable Scheduler</h2>
+          <h2 className="modal-title">How to use the Timetable Scheduler</h2>
           <button 
             className="close-btn" 
             onClick={onClose}

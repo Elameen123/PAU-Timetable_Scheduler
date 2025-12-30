@@ -1,5 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 /* Results Section */
 .results-section {
+  font-family: 'Poppins', sans-serif;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   border: 2px solid #d1d5db;
   border-radius: 4px;
@@ -62,31 +65,31 @@
 }
 
 .open-dash-btn {
-  background: linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%);
-  color: #374151;
+  background: #11214d;
+  color: #ffffff;
   border: 1px solid #d1d5db;
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
   font-weight: 500;
-  border-radius: 2px;
+  border-radius: 5px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .open-dash-btn:hover {
-  background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+  background: #25418e;
   border-color: #9ca3af;
 }
 
 .open-dash-btn:active {
-  background: linear-gradient(180deg, #e5e7eb 0%, #d1d5db 100%);
+  background: #496ac6;
   box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .iframe-container {
   width: 100%;
-  height: 80vh;
+  height: 85vh;
   border: 1px solid #d1d5db;
   border-radius: 4px;
   overflow: hidden;
@@ -113,7 +116,7 @@
   }
 
   .iframe-container {
-    height: 70vh;
+    height: 75vh;
   }
 }
 

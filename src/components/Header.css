@@ -159,13 +159,18 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .nav-container {
-    flex-direction: column;
+    flex-direction: row;
     gap: 1rem;
-    align-items: flex-start;
+    align-items: flex-end;
+  }
+
+  .university-name{
+    display: inline-flexbox;
+    justify-content: center;
   }
 
   .nav-right {
-    width: 100%;
+    width: 15%;
     justify-content: flex-end;
     gap: 1rem;
   }

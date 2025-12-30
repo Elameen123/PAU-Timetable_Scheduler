@@ -11,7 +11,7 @@ const Header = ({ onShowInstructions }) => {
           {/* <div className="university-name">Timetable Generator</div> */}
         </div>
 
-        <div className="university-name">Timetable Generator</div>
+        <div className="university-name">Timetable Scheduler</div>
         
         <div className="nav-right">
           <button 
