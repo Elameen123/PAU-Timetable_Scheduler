@@ -8,8 +8,10 @@ const getApiBaseUrl = () => {
   }
   // Always prefer explicit env override if provided
    if (process.env.REACT_APP_API_BASE_URL) return process.env.REACT_APP_API_BASE_URL;
-  // On hosting platforms (like hf.space), use relative URLs by default
-  return '';
+  
+  // Fallback to the known Hugging Face Space URL for production
+  // This allows Vercel deployments to connect to the backend
+  return 'https://pau-001-pau-timetable-scheduler.hf.space';
 };
 
 const API_BASE_URL = getApiBaseUrl();
