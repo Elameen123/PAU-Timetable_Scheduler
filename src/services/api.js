@@ -6,15 +6,19 @@ const getApiBaseUrl = () => {
   if (process.env.NODE_ENV === 'development') {
     return '';
   }
-  // Always prefer explicit env override if provided
-   if (process.env.REACT_APP_API_BASE_URL) return process.env.REACT_APP_API_BASE_URL;
+  
+  // Custom API Base URL override
+  if (process.env.REACT_APP_API_BASE_URL) return process.env.REACT_APP_API_BASE_URL;
   
   // Fallback to the known Hugging Face Space URL for production
-  // This allows Vercel deployments to connect to the backend
+  // Note: https://huggingface.co/spaces/PAU-001/PAU-Timetable-Scheduler is the REPO view.
+  // The API runs at the .hf.space subdomain:
   return 'https://pau-001-pau-timetable-scheduler.hf.space';
 };
 
 const API_BASE_URL = getApiBaseUrl();
+console.log('🔗 API Base URL configured to:', API_BASE_URL || 'Relative URL (Proxy)');
+
 
 // Create axios instance with CORS-friendly config
 const apiClient = axios.create({
