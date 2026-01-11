@@ -23,7 +23,7 @@ console.log('🔗 API Base URL configured to:', API_BASE_URL || 'Relative URL (P
 // Create axios instance with CORS-friendly config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 1000000, // 5 minutes timeout for large file processing
+  timeout: 0, // No timeout (infinite)
   withCredentials: false, // Important for CORS
   headers: {
     'Accept': 'application/json',
@@ -197,7 +197,7 @@ export const generateTimetable = async (uploadId, progressCallback, options) => 
  * @returns {Promise<Object>} Final timetable data
  */
 const pollForCompletion = async (uploadId, progressCallback) => {
-  const maxAttempts = 720; // 60 minutes with 5-second intervals
+  const maxAttempts = 3000; // ~4 hours with 5-second intervals
   let attempts = 0;
 
   return new Promise((resolve, reject) => {
