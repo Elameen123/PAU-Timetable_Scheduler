@@ -380,20 +380,81 @@ export const validateFile = async (fileId) => {
  */
 export const getBackendBaseUrl = () => API_BASE_URL;
 
+// Dash UI is now disabled - all UI handled by React frontend
 export const getDashUrl = (uploadId) => {
-  // The Dash app reads the latest generated data saved by the backend.
-  // Attach the job id as a query param for visibility (Dash ignores it, harmless).
-  const base = `${API_BASE_URL}/interactive/`;
-  return uploadId ? `${base}?job=${encodeURIComponent(uploadId)}` : base;
+  // This endpoint no longer exists - frontend handles all UI
+  return null;
 };
 
 export const openDashUI = (uploadId) => {
-  const url = getDashUrl(uploadId);
+  // Dash UI is disabled - no action needed
+  console.warn('Dash UI has been disabled. All timetable UI is now in React.');
+};
+
+/**
+ * Get rooms data for room selection
+ * @returns {Promise<Array>} Array of room objects
+ */
+export const getRoomsData = async () => {
   try {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  } catch (_) {
-    // Fallback
-    window.location.href = url;
+    const response = await makeRequestWithRetry(() =>
+      apiClient.get('/api/get-rooms-data')
+    );
+    return response.data.rooms || [];
+  } catch (error) {
+    console.error('Error fetching rooms data:', error);
+    return [];
+  }
+};
+
+/**
+ * Get constraint violations for a timetable
+ * @param {string} uploadId - Upload ID
+ * @returns {Promise<Object>} Constraint violations object
+ */
+export const getConstraintViolations = async (uploadId) => {
+  try {
+    const response = await makeRequestWithRetry(() =>
+      apiClient.get(`/api/get-constraint-violations/${uploadId}`)
+    );
+    return response.data.violations || {};
+  } catch (error) {
+    console.error('Error fetching constraint violations:', error);
+    return {};
+  }
+};
+
+/**
+ * Save timetable changes with manual modifications
+ * @param {Object} data - Timetable data with manual_cells
+ * @returns {Promise<Object>} Save response
+ */
+export const saveTimetableChanges = async (data) => {
+  try {
+    const response = await makeRequestWithRetry(() =>
+      apiClient.post('/api/save-timetable-changes', data)
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error saving timetable changes:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get previously saved timetable with manual changes
+ * @param {string} uploadId - Upload ID
+ * @returns {Promise<Object>} Saved timetable data
+ */
+export const getSavedTimetable = async (uploadId) => {
+  try {
+    const response = await makeRequestWithRetry(() =>
+      apiClient.get(`/api/get-saved-timetable/${uploadId}`)
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching saved timetable:', error);
+    return { timetables: null, manual_cells: [] };
   }
 };
 

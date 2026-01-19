@@ -73,9 +73,13 @@ const TimetableGenerator = () => {
     console.log('Timetable generation completed:', timetableData);
 
     // Extract timetables from response - handle different response formats
+    // PRIORITIZE timetables_raw which contains the actual grid data (rows),
+    // whereas 'timetables' usually contains just the summary cards.
     let timetables = [];
     if (timetableData) {
       timetables =
+        timetableData.timetables_raw ||
+        timetableData.data?.timetables_raw ||
         timetableData.timetables ||
         timetableData.data?.timetables ||
         timetableData.results ||
@@ -255,8 +259,11 @@ const TimetableGenerator = () => {
           onGenerationsChange={(val) => setGenerations(val)}
         />
 
-        {uploadId && !isProcessing && (
-          <TimetableResults uploadId={uploadId} />
+        {uploadId && !isProcessing && generatedData.length > 0 && (
+          <TimetableResults
+            result={{ timetables: generatedData }}
+            uploadId={uploadId}
+          />
         )}
 
         {error && (

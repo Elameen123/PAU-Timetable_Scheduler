@@ -19,6 +19,15 @@ const FileUpload = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
+  const handleCancel = () => {
+    // Allow re-selecting the same file after cancel.
+    // Without clearing, browsers won't fire onChange for the same file path.
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    onFileReset && onFileReset();
+  };
+
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file && validateFile(file)) {
@@ -167,8 +176,8 @@ const FileUpload = ({
               </button>
               <button 
                 className="cancel-btn" 
-                onClick={onFileReset}
-                disabled={isProcessing}
+                onClick={handleCancel}
+                disabled={false}
                 type="button"
               >
                 <span className="btn-icon">✕</span>

@@ -7,7 +7,12 @@ module.exports = function(app) {
     '/generate-timetable', 
     '/get-timetable-status',
     '/export-timetable',
-    '/api/download-template'
+    '/api/export',
+    '/api/download-template',
+    '/api/get-rooms-data',
+    '/api/get-constraint-violations',
+    '/api/save-timetable-changes',
+    '/api/get-saved-timetable'
   ];
   
   apiPaths.forEach(path => {
