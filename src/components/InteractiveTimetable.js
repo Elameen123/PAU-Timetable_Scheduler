@@ -583,7 +583,6 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
     newTimetables[currentGroupIdx].timetable[row][col] = formatCell(course, lecturerToUse, newRoom);
 
     // Mark as manual
-    const cellKey = `${currentGroupIdx}-${row}-${col}`;
     const updatedManualCells = [...manualCells];
     
     // Fixed: Changing a room via modal is NOT manually scheduling a new class, so do NOT add blue border.
@@ -803,6 +802,7 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
             }}
             onFocus={() => {
               setGroupDropdownOpen(true);
+              handleSearchFocus();
             }}
             aria-label="Select Student Group"
           />
