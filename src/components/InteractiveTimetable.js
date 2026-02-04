@@ -13,7 +13,7 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
   const pendingNavRef = useRef(null);
 
   const days = useMemo(() => ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], []);
-  const hours = useMemo(() => Array.from({ length: 9 }, (_, i) => `${9 + i}:00`), []);
+  const hours = useMemo(() => Array.from({ length: 10 }, (_, i) => `${(8 + i).toString().padStart(2, '0')}:30 - ${(9 + i).toString().padStart(2, '0')}:30`), []);
 
   const normalizeRow = useCallback((row, rowIdx) => {
     // Accept both array-row format and object-row format.
@@ -23,8 +23,8 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
       while (padded.length < 6) padded.push('');
       padded.length = 6;
 
-      // Ensure time is present
-      if (!padded[0]) padded[0] = hours[rowIdx] || '';
+      // Force correctly formatted time label from our hours array
+      padded[0] = hours[rowIdx] || '';
 
       // Normalize empty cells to FREE, matching Dash UI display.
       for (let i = 1; i < padded.length; i++) {
@@ -36,7 +36,7 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
     }
 
     if (row && typeof row === 'object') {
-      const time = row.Time || row.time || row[0] || hours[rowIdx] || '';
+      const time = hours[rowIdx] || row.Time || row.time || row[0] || '';
       const normalized = [
         String(time),
         row.Monday ?? row.mon ?? row.Mon ?? row[1] ?? 'FREE',

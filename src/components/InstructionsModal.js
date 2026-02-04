@@ -288,7 +288,7 @@ const InstructionsModal = ({ isOpen, onClose }) => {
                               <td>Computer Science</td>
                               <td>Full-Time</td>
                               <td>Mon,Tue,Wed,Thu,Fri</td>
-                              <td>9:00-17:00</td>
+                              <td>08:30-18:30</td>
                             </tr>
                             <tr>
                               <td>F002</td>
@@ -296,7 +296,7 @@ const InstructionsModal = ({ isOpen, onClose }) => {
                               <td>Mathematics</td>
                               <td>Adjunct</td>
                               <td>Mon,Wed,Fri</td>
-                              <td>10:00-15:00</td>
+                              <td>10:30-15:30</td>
                             </tr>
                           </tbody>
                         </table>

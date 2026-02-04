@@ -346,15 +346,16 @@ export const getTimeSlots = async () => {
     // If API endpoint doesn't exist or fails, return default time slots
     console.warn('Failed to fetch time slots from API, using defaults:', error.message);
     return [
-      { start: '09:00', end: '10:00', label: '9:00 AM' },
-      { start: '10:00', end: '11:00', label: '10:00 AM' },
-      { start: '11:00', end: '12:00', label: '11:00 AM' },
-      { start: '12:00', end: '13:00', label: '12:00 PM' },
-      { start: '14:00', end: '15:00', label: '2:00 PM' },
-      { start: '15:00', end: '16:00', label: '3:00 PM' },
-      { start: '16:00', end: '17:00', label: '4:00 PM' },
-      { start: '17:00', end: '18:00', label: '5:00 PM' },
-      { start: '18:00', end: '19:00', label: '6:00 PM' },
+      { start: '08:30', end: '09:30', label: '8:30 AM' },
+      { start: '09:30', end: '10:30', label: '9:30 AM' },
+      { start: '10:30', end: '11:30', label: '10:30 AM' },
+      { start: '11:30', end: '12:30', label: '11:30 AM' },
+      // Break usually at 12:30-13:30
+      { start: '13:30', end: '14:30', label: '1:30 PM' },
+      { start: '14:30', end: '15:30', label: '2:30 PM' },
+      { start: '15:30', end: '16:30', label: '3:30 PM' },
+      { start: '16:30', end: '17:30', label: '4:30 PM' },
+      { start: '17:30', end: '18:30', label: '5:30 PM' },
     ];
   }
 };
