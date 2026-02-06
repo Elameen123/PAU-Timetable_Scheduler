@@ -15,7 +15,7 @@ describe('TimetableGenerator', () => {
   test('renders main components', () => {
     render(<TimetableGenerator />);
     
-    expect(screen.getByText('Pan-Atlantic University')).toBeInTheDocument();
+    expect(screen.getByText('Timetable Scheduler')).toBeInTheDocument();
     expect(screen.getByText('File Upload & Processing')).toBeInTheDocument();
     expect(screen.getByText('How to Use')).toBeInTheDocument();
   });
@@ -26,8 +26,9 @@ describe('TimetableGenerator', () => {
     const instructionsBtn = screen.getByText('How to Use');
     fireEvent.click(instructionsBtn);
     
-    expect(screen.getByText('How to Use the Timetable Generator')).toBeInTheDocument();
-    expect(screen.getByText('Step 1: Upload Excel File')).toBeInTheDocument();
+    expect(screen.getByText(/How to use the Timetable Scheduler/i)).toBeInTheDocument();
+    expect(screen.getByText('Download Template File')).toBeInTheDocument();
+    expect(screen.getByText('Required Excel Sheets')).toBeInTheDocument();
   });
 
   test('closes instructions modal when close button is clicked', () => {
@@ -41,7 +42,7 @@ describe('TimetableGenerator', () => {
     const closeBtn = screen.getByLabelText('Close modal');
     fireEvent.click(closeBtn);
     
-    expect(screen.queryByText('How to Use the Timetable Generator')).not.toBeInTheDocument();
+    expect(screen.queryByText(/How to use the Timetable Scheduler/i)).not.toBeInTheDocument();
   });
 
   test('handles file selection', () => {
@@ -55,7 +56,9 @@ describe('TimetableGenerator', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
     
     expect(screen.getByDisplayValue('test.xlsx')).toBeInTheDocument();
-    expect(screen.getByText(/File loaded: test.xlsx/)).toBeInTheDocument();
+    const selectedInfo = screen.getByText((_, el) => el?.classList?.contains('selected-file'));
+    expect(selectedInfo).toHaveTextContent(/File loaded:/i);
+    expect(selectedInfo).toHaveTextContent(/test\.xlsx/i);
     expect(screen.getByText('Generate Timetable')).toBeInTheDocument();
   });
 
@@ -80,14 +83,12 @@ describe('TimetableGenerator', () => {
 
   test('handles successful timetable generation', async () => {
     // Mock API responses
-    api.uploadFile.mockResolvedValue({ fileId: 'test-file-id' });
+    api.uploadFile.mockResolvedValue({ uploadId: 'test-file-id' });
     api.generateTimetable.mockResolvedValue({
-      timetables: [
+      timetables_raw: [
         {
-          title: 'Year 1 Computer Science',
-          department: 'Computer Science',
-          level: '100 Level',
-          courses: ['CSC101: Intro to Computing']
+          student_group: 'Year 1 Computer Science',
+          rows: []
         }
       ]
     });
@@ -101,6 +102,10 @@ describe('TimetableGenerator', () => {
     });
     
     fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Select generations (required)
+    const gensSelect = screen.getByRole('combobox');
+    fireEvent.change(gensSelect, { target: { value: '10' } });
     
     // Generate timetable
     const generateBtn = screen.getByText('Generate Timetable');
@@ -108,9 +113,9 @@ describe('TimetableGenerator', () => {
     
     // Wait for results
     await waitFor(() => {
-      expect(screen.getByText('Generated Timetables')).toBeInTheDocument();
-      expect(screen.getByText('Year 1 Computer Science')).toBeInTheDocument();
-    });
+      expect(screen.getByText(/Timetable for Year 1 Computer Science/i)).toBeInTheDocument();
+      expect(screen.getByText('Download Timetables')).toBeInTheDocument();
+    }, { timeout: 4000 });
   });
 
   test('handles API errors during generation', async () => {
@@ -126,6 +131,10 @@ describe('TimetableGenerator', () => {
     });
     
     fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Select generations (required)
+    const gensSelect = screen.getByRole('combobox');
+    fireEvent.change(gensSelect, { target: { value: '10' } });
     
     // Generate timetable
     const generateBtn = screen.getByText('Generate Timetable');
@@ -133,14 +142,14 @@ describe('TimetableGenerator', () => {
     
     // Wait for error
     await waitFor(() => {
-      expect(screen.getByText(/Error: Upload failed/)).toBeInTheDocument();
+      const errs = screen.getAllByText((_, el) => el?.classList?.contains('error-message'));
+      expect(errs.some((el) => /upload failed/i.test(el.textContent || ''))).toBe(true);
     });
   });
 
-  test('download button is disabled when no timetables are generated', () => {
+  test('no download button before generation', () => {
     render(<TimetableGenerator />);
-    
-    const downloadBtn = screen.getByText('Download');
-    expect(downloadBtn).toBeDisabled();
+
+    expect(screen.queryByText('Download Timetables')).not.toBeInTheDocument();
   });
 });

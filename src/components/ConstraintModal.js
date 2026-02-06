@@ -30,6 +30,75 @@ const ConstraintModal = ({ isOpen, onClose, constraintDetails, timetables, onNav
     return map;
   }, [timetables]);
 
+  const extractCourseFromCell = (cellContent) => {
+    if (!cellContent) return null;
+    const text = String(cellContent).trim();
+    if (!text || text.toUpperCase() === 'FREE' || text.toUpperCase() === 'BREAK') return null;
+
+    // Multi-line: first line is usually the course code
+    if (text.includes('\n')) {
+      const first = text.split('\n').map(s => s.trim()).filter(Boolean)[0];
+      return first || null;
+    }
+
+    // Inline: "Course: XXX" format
+    const m = text.match(/Course:\s*([^,]+)(?:,|$)/i);
+    if (m && m[1]) return String(m[1]).trim();
+
+    // Fallback: assume first token is course code
+    const token = text.split(/\s+/)[0];
+    return token || null;
+  };
+
+  const parseStartTimeFromRowLabel = (label, rowIdx) => {
+    // Expected: "08:30 - 09:30" or "08:30-09:30" or just "08:30"
+    if (label) {
+      const s = String(label);
+      const m = s.match(/(\d{1,2}:\d{2})/);
+      if (m && m[1]) return m[1];
+    }
+    // Fallback to 08:30 + rowIdx hours
+    const baseMinutes = 8 * 60 + 30;
+    const minutes = baseMinutes + (rowIdx * 60);
+    const hh = Math.floor(minutes / 60);
+    const mm = minutes % 60;
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  };
+
+  const findCourseOccurrences = (groupName, courseCode) => {
+    if (!groupName || !courseCode) return [];
+    const idx = groupMap.has(String(groupName)) ? groupMap.get(String(groupName)) : null;
+    if (idx === null || idx === undefined) return [];
+    const grid = timetables?.[idx]?.timetable;
+    if (!Array.isArray(grid)) return [];
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const out = [];
+
+    for (let r = 0; r < grid.length; r++) {
+      const row = grid[r];
+      if (!Array.isArray(row) || row.length < 2) continue;
+
+      const startTime = parseStartTimeFromRowLabel(row[0], r);
+
+      for (let d = 0; d < Math.min(5, row.length - 1); d++) {
+        const cell = row[d + 1];
+        const cellCourse = extractCourseFromCell(cell);
+        if (!cellCourse) continue;
+        if (String(cellCourse).trim().toUpperCase() !== String(courseCode).trim().toUpperCase()) continue;
+
+        out.push({
+          row: r,
+          col: d + 1,
+          day: days[d],
+          time: startTime
+        });
+      }
+    }
+
+    return out;
+  };
+
   if (!isOpen) return null;
 
   const toggleConstraint = (constraintName) => {
@@ -115,7 +184,30 @@ const ConstraintModal = ({ isOpen, onClose, constraintDetails, timetables, onNav
       if (violation.day && violation.time) {
         locDisplay = `${violation.day} at ${violation.time}`;
       }
-      return `Lecturer '${violation.lecturer}' scheduled for ${violation.course} for group ${violation.group} on ${locDisplay} but available: ${violation.available_days} at ${violation.available_times}`;
+
+      // Handle case where available_times is passed as a raw object/array
+      let availTimeDisplay = violation.available_times;
+      if (typeof availTimeDisplay === 'object' && availTimeDisplay !== null) {
+        if (Array.isArray(availTimeDisplay)) {
+           availTimeDisplay = availTimeDisplay.join(', ');
+        } else {
+           // Dictionary case: Try to find times for the specific day
+           const d = violation.day || '';
+           const dCap = d.charAt(0).toUpperCase() + d.slice(1).toLowerCase();
+           
+           const val = availTimeDisplay[d] || availTimeDisplay[dCap] || availTimeDisplay['All'];
+           
+           // If we found a value for the day, use it. Otherwise fallback to flattening all values.
+           if (val) {
+               availTimeDisplay = Array.isArray(val) ? val.join(', ') : String(val);
+           } else {
+               const all = Object.values(availTimeDisplay).flat();
+               availTimeDisplay = all.join(', ');
+           }
+        }
+      }
+
+      return `Lecturer '${violation.lecturer}' is available at [${availTimeDisplay}] on ${violation.day} but scheduled at ${violation.time}`;
     }
 
     if (internalName === 'Lecturer Workload Violations') {
@@ -139,7 +231,15 @@ const ConstraintModal = ({ isOpen, onClose, constraintDetails, timetables, onNav
         : (Array.isArray(timesVal) ? timesVal.join(', ') : String(timesVal));
       
       const courseNameDisplay = violation.course_name ? ` (${violation.course_name})` : '';
-      return `${reason}: Course '${violation.course || ''}'${courseNameDisplay} for group '${violation.group || ''}' at ${timesStr}`;
+      // If backend doesn't supply day info, derive it from the actual timetable grid.
+      let dayInfo = violation.day;
+      if (!dayInfo && violation.group && violation.course) {
+        const occ = findCourseOccurrences(violation.group, violation.course);
+        if (occ.length > 0) {
+          dayInfo = occ.map(o => `${o.day} ${o.time}`).join(', ');
+        }
+      }
+      return `${reason}: Course '${violation.course || ''}'${courseNameDisplay} for group '${violation.group || ''}'${dayInfo ? ` on ${dayInfo}` : ''} at ${timesStr}`;
     }
 
     if (internalName === 'Missing or Extra Classes') {
@@ -240,52 +340,135 @@ const ConstraintModal = ({ isOpen, onClose, constraintDetails, timetables, onNav
                               let targetCol = null;
                               
                               // Helper to map day/time
-                              const dayMap = { 'MONDAY': 0, 'TUESDAY': 1, 'WEDNESDAY': 2, 'THURSDAY': 3, 'FRIDAY': 4 };
-                              // Assuming default time slots (adjust if different in frontend)
-                              // 0: 9-9:50, 1: 10-10:50, ...
-                              const extractTimeIdx = (tStr) => {
-                                if (!tStr) return null;
-                                const hourRaw = parseInt(String(tStr).split(':')[0], 10);
-                                if (Number.isNaN(hourRaw)) return null;
-
-                                // Timetable grid is 9 slots: 09:00 .. 17:00 (inclusive)
-                                // Map 09 -> 0, 10 -> 1, ... 17 -> 8
-                                if (hourRaw >= 9 && hourRaw <= 17) return hourRaw - 9;
-
-                                // If the data uses 12-hour times like "1:00" for 13:00, treat as PM.
-                                if (hourRaw >= 1 && hourRaw <= 8) return hourRaw + 3;
-
-                                return null;
+                              const dayMap = {
+                                'MONDAY': 0, 'MON': 0,
+                                'TUESDAY': 1, 'TUE': 1, 'TUES': 1,
+                                'WEDNESDAY': 2, 'WED': 2,
+                                'THURSDAY': 3, 'THU': 3, 'THUR': 3,
+                                'FRIDAY': 4, 'FRI': 4,
                               };
+
+                              const normalizeDayKey = (raw) => {
+                                if (!raw) return null;
+                                const s = String(raw).trim();
+                                if (!s) return null;
+                                const u = s.toUpperCase();
+                                if (dayMap[u] !== undefined) return u;
+                                // Handle strings like "Mon" or "Monday" embedded in text
+                                const m = /(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|MON|TUE|TUES|WED|THU|THUR|FRI)/i.exec(u);
+                                return m ? String(m[1]).toUpperCase() : null;
+                              };
+
+                              const SLOTS_PER_DAY = 10;
+                              const parseTimeToMinutes = (raw) => {
+                                if (!raw) return null;
+                                let s = String(raw).trim();
+                                if (!s) return null;
+                                // Accept 8.30 as 8:30
+                                s = s.replace(/(\d)\.(\d{2})\b/g, '$1:$2');
+                                const m = s.match(/^(\d{1,2})\s*:\s*(\d{2})\s*(AM|PM)?$/i);
+                                if (!m) return null;
+                                let hh = parseInt(m[1], 10);
+                                const mm = parseInt(m[2], 10);
+                                if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+                                const ampm = m[3] ? String(m[3]).toUpperCase() : null;
+                                if (ampm) {
+                                  if (ampm === 'PM' && hh < 12) hh += 12;
+                                  if (ampm === 'AM' && hh === 12) hh = 0;
+                                }
+                                return hh * 60 + mm;
+                              };
+
+                              const timeToRowIdx = (timeStr) => {
+                                const mins = parseTimeToMinutes(timeStr);
+                                if (mins === null) return null;
+                                const base = 8 * 60 + 30;
+                                const idx = Math.round((mins - base) / 60);
+                                if (!Number.isFinite(idx)) return null;
+                                if (idx < 0 || idx >= SLOTS_PER_DAY) return null;
+                                return idx;
+                              };
+
+                              const extractFirstTimeFromText = (text) => {
+                                if (!text) return null;
+                                const s = String(text);
+                                // Grab first HH:MM (optionally followed by AM/PM)
+                                const m = s.match(/\b(\d{1,2}[:\.]\d{2})\s*(AM|PM)?\b/i);
+                                if (!m) return null;
+                                return (m[2] ? `${m[1].replace('.', ':')} ${m[2]}` : m[1].replace('.', ':'));
+                              };
+
+                              const pickRowFromTimeSlot = (slot) => {
+                                const n = parseInt(slot, 10);
+                                if (Number.isNaN(n)) return null;
+                                // Some payloads store a global timeslot index (0..days*slots-1)
+                                if (n >= SLOTS_PER_DAY) return n % SLOTS_PER_DAY;
+                                return n;
+                              };
+
+                              // Prefer explicit coordinates if backend provided them
+                              if (violation && typeof violation === 'object') {
+                                if (violation.row !== undefined && violation.col !== undefined) {
+                                  const rr = parseInt(violation.row, 10);
+                                  const cc = parseInt(violation.col, 10);
+                                  if (!Number.isNaN(rr) && !Number.isNaN(cc)) {
+                                    targetRow = rr;
+                                    targetCol = cc;
+                                  }
+                                }
+                              }
+
+                              const parseText = [
+                                (typeof violation === 'string' ? violation : null),
+                                (violation && typeof violation === 'object' ? violation.location : null),
+                                itemText,
+                              ].filter(Boolean).join(' ');
                               
-                              if (violation.day && (violation.time || violation.time_slot !== undefined)) {
-                                  const dUpper = violation.day.toUpperCase();
-                                  if (dayMap[dUpper] !== undefined) {
-                                      targetCol = dayMap[dUpper] + 1; // +1 because col 0 is Time header
-                                      
-                                      if (violation.time_slot !== undefined) {
-                                         targetRow = violation.time_slot;
-                                      } else if (violation.time) {
-                                         targetRow = extractTimeIdx(violation.time);
-                                      }
-                                  }
-                              } else if (violation.location) {
-                                  // Best-effort location parse: e.g. "MONDAY 9:00-9:50" or "Monday at 9:00"
-                                  const loc = String(violation.location);
+                              // If we still don't have coordinates, derive day/time from fields OR rendered text
+                              if (targetRow === null || targetCol === null) {
+                                const rawDay = (violation && typeof violation === 'object' && violation.day) ? violation.day : null;
+                                const dayFromTextMatch = /(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|MON|TUE|TUES|WED|THU|THUR|FRI)/i.exec(parseText);
+                                const dKey = normalizeDayKey(rawDay || (dayFromTextMatch ? dayFromTextMatch[1] : null));
+                                if (dKey && dayMap[dKey] !== undefined) {
+                                  targetCol = dayMap[dKey] + 1; // +1 because col 0 is Time header
+                                }
 
-                                  const dayMatch = /(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)/i.exec(loc);
-                                  const timeMatch = /(\d{1,2}:\d{2})/i.exec(loc);
+                                const rawTime = (violation && typeof violation === 'object' && violation.time) ? violation.time : null;
+                                const timeCandidate = rawTime || extractFirstTimeFromText(parseText);
 
-                                  if (dayMatch) {
-                                    const dUpper = String(dayMatch[1]).toUpperCase();
-                                    if (dayMap[dUpper] !== undefined) {
-                                      targetCol = dayMap[dUpper] + 1;
-                                    }
-                                  }
+                                if (violation && typeof violation === 'object' && violation.time_slot !== undefined) {
+                                  const rr = pickRowFromTimeSlot(violation.time_slot);
+                                  if (rr !== null) targetRow = rr;
+                                } else if (timeCandidate) {
+                                  targetRow = timeToRowIdx(timeCandidate);
+                                }
+                              }
 
-                                  if (timeMatch) {
-                                    targetRow = extractTimeIdx(timeMatch[1]);
-                                  }
+                              // If we have group + course, try to pinpoint the exact occurrence
+                              if ((targetRow === null || targetCol === null) && violation && typeof violation === 'object') {
+                                const occ = (violation.group && violation.course)
+                                  ? findCourseOccurrences(violation.group, violation.course)
+                                  : [];
+                                if (occ.length > 0) {
+                                  // If we parsed a day/time, try to match it; else just take the first.
+                                  const best = (targetRow !== null && targetCol !== null)
+                                    ? occ.find(o => o.row === targetRow && o.col === targetCol) || occ[0]
+                                    : occ[0];
+                                  targetRow = best.row;
+                                  targetCol = best.col;
+                                }
+                              }
+
+                              // Fallback: for violations that don't carry day/time fields (e.g. Consecutive Slot Violations),
+                              // derive the first offending cell from the group's timetable.
+                              if ((targetRow === null || targetCol === null) && internalName === 'Consecutive Slot Violations') {
+                                const occ = (violation && violation.group && violation.course)
+                                  ? findCourseOccurrences(violation.group, violation.course)
+                                  : [];
+                                if (occ.length > 0) {
+                                  targetRow = occ[0].row;
+                                  targetCol = occ[0].col;
+                                }
                               }
 
                               onNavigate(targetGroupIdx, targetRow, targetCol);

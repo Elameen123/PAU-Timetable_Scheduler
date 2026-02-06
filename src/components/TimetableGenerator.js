@@ -3,7 +3,7 @@ import Header from './Header';
 import FileUpload from './FileUpload';
 import TimetableResults from './TimetableResults';
 import InstructionsModal from './InstructionsModal';
-import { uploadFile, generateTimetable, downloadTimetable } from '../services/api.js';
+import { uploadFile, generateTimetable, downloadTimetable } from '../services/api';
 import './TimetableGenerator.css';
 
 const TimetableGenerator = () => {

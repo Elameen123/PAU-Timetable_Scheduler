@@ -58,7 +58,9 @@ describe('FileUpload', () => {
     render(<FileUpload {...mockProps} selectedFile={file} />);
     
     expect(screen.getByDisplayValue('test.xlsx')).toBeInTheDocument();
-    expect(screen.getByText(/File loaded: test.xlsx/)).toBeInTheDocument();
+    const selectedInfo = screen.getByText((_, el) => el?.classList?.contains('selected-file'));
+    expect(selectedInfo).toHaveTextContent(/File loaded:/i);
+    expect(selectedInfo).toHaveTextContent(/test\.xlsx/i);
   });
 
   test('handles file selection', () => {
@@ -117,8 +119,10 @@ describe('FileUpload', () => {
 
   test('shows error message when provided', () => {
     render(<FileUpload {...mockProps} error="Test error message" />);
-    
-    expect(screen.getByText(/Error: Test error message/)).toBeInTheDocument();
+
+    const err = screen.getByText((_, el) => el?.classList?.contains('error-message'));
+    expect(err).toHaveTextContent(/Error:/i);
+    expect(err).toHaveTextContent(/Test error message/i);
   });
 
   test('handles generate button click', () => {

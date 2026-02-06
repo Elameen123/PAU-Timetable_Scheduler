@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders Pan-Atlantic University header', () => {
+test('renders app header', () => {
   render(<App />);
-  const headerElement = screen.getByText(/Pan-Atlantic University/i);
+  const headerElement = screen.getByText(/Timetable Scheduler/i);
   expect(headerElement).toBeInTheDocument();
 });
 

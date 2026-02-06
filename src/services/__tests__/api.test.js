@@ -1,9 +1,12 @@
-import axios from 'axios';
-import { uploadFile, generateTimetable, downloadTimetable } from '../api';
-
-// Mock axios
-jest.mock('axios');
-const mockedAxios = axios;
+// Mock axios so CRA/Jest doesn't need to parse axios's ESM bundle.
+// We only rely on axios.create() returning a client with interceptors.
+const mockCreate = jest.fn();
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    create: mockCreate,
+  },
+}));
 
 // Mock environment variables
 const originalEnv = process.env;
@@ -14,16 +17,24 @@ beforeEach(() => {
     ...originalEnv,
     REACT_APP_API_BASE_URL: 'http://localhost:8000/api',
     REACT_APP_UPLOAD_ENDPOINT: '/timetable/upload',
-    REACT_APP_GENERATE_ENDPOINT: '/timetable/generate',
-    REACT_APP_DOWNLOAD_ENDPOINT: '/timetable/download'
+    // generateTimetable() uses '/generate-timetable' in current API service
+    // downloadTimetable() uses '/export-timetable'
   };
-  
-  // Reset axios mock
-  mockedAxios.create.mockReturnValue(mockedAxios);
-  mockedAxios.interceptors = {
-    request: { use: jest.fn() },
-    response: { use: jest.fn() }
+
+  // Provide a fresh mock client per test; apiClient is created at module import time.
+  const mockClient = {
+    post: jest.fn(),
+    get: jest.fn(),
+    interceptors: {
+      request: { use: jest.fn() },
+      response: { use: jest.fn() }
+    }
   };
+
+  mockCreate.mockReturnValue(mockClient);
+
+  // Expose for tests
+  global.__mockApiClient = mockClient;
 });
 
 afterEach(() => {
@@ -34,15 +45,18 @@ afterEach(() => {
 describe('API Service', () => {
   describe('uploadFile', () => {
     test('successfully uploads file', async () => {
+      const { uploadFile } = require('../api');
+      const apiClient = global.__mockApiClient;
+
       const mockResponse = {
         data: {
-          fileId: 'test-file-id',
+          upload_id: 'test-file-id',
           filename: 'test.xlsx',
           status: 'uploaded'
         }
       };
-      
-      mockedAxios.post.mockResolvedValue(mockResponse);
+
+      apiClient.post.mockResolvedValue(mockResponse);
       
       const file = new File(['test content'], 'test.xlsx', {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -50,22 +64,16 @@ describe('API Service', () => {
       
       const result = await uploadFile(file);
       
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        '/timetable/upload',
-        expect.any(FormData),
-        expect.objectContaining({
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        })
-      );
-      
-      expect(result).toEqual(mockResponse.data);
+      expect(apiClient.post).toHaveBeenCalledWith('/timetable/upload', expect.any(FormData));
+      expect(result).toEqual({ uploadId: 'test-file-id', meta: mockResponse.data });
     });
 
     test('handles upload error', async () => {
+      const { uploadFile } = require('../api');
+      const apiClient = global.__mockApiClient;
+
       const error = new Error('Network Error');
-      mockedAxios.post.mockRejectedValue(error);
+      apiClient.post.mockRejectedValue(error);
       
       const file = new File(['test'], 'test.xlsx', {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -77,60 +85,64 @@ describe('API Service', () => {
 
   describe('generateTimetable', () => {
     test('successfully generates timetable', async () => {
+      const { generateTimetable } = require('../api');
+      const apiClient = global.__mockApiClient;
+
       const mockResponse = {
-        data: {
-          timetables: [
-            {
-              title: 'Year 1 CS',
-              department: 'Computer Science',
-              level: '100 Level',
-              courses: ['CSC101: Intro to Computing']
-            }
-          ],
-          status: 'completed'
-        }
+        status: 202,
+        data: { message: 'started' }
       };
-      
-      mockedAxios.post.mockResolvedValue(mockResponse);
+
+      apiClient.post.mockResolvedValue(mockResponse);
+      apiClient.get.mockResolvedValueOnce({
+        data: {
+          status: 'completed',
+          progress: 100,
+          result: { timetables: [] }
+        }
+      });
       
       const result = await generateTimetable('test-file-id');
       
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        '/timetable/generate',
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/generate-timetable',
         expect.objectContaining({
-          fileId: 'test-file-id',
-          options: expect.any(Object)
-        }),
-        expect.objectContaining({
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          upload_id: 'test-file-id',
+          config: expect.any(Object)
         })
       );
-      
-      expect(result).toEqual(mockResponse.data);
+      expect(apiClient.get).toHaveBeenCalledWith('/get-timetable-status/test-file-id');
+      expect(result).toEqual({ timetables: [] });
     });
 
     test('calls progress callback', async () => {
-      const mockResponse = { data: { timetables: [] } };
+      const { generateTimetable } = require('../api');
+      const apiClient = global.__mockApiClient;
+
+      const mockResponse = { status: 202, data: { message: 'started' } };
       const progressCallback = jest.fn();
-      
-      mockedAxios.post.mockResolvedValue(mockResponse);
+
+      apiClient.post.mockResolvedValue(mockResponse);
+      apiClient.get.mockResolvedValueOnce({
+        data: {
+          status: 'completed',
+          progress: 100,
+          message: 'done',
+          result: { timetables: [] }
+        }
+      });
       
       await generateTimetable('test-file-id', progressCallback);
-      
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
-        expect.objectContaining({
-          onUploadProgress: expect.any(Function)
-        })
-      );
+
+      expect(progressCallback).toHaveBeenCalled();
     });
 
     test('handles generation error', async () => {
+      const { generateTimetable } = require('../api');
+      const apiClient = global.__mockApiClient;
+
       const error = new Error('Generation failed');
-      mockedAxios.post.mockRejectedValue(error);
+      apiClient.post.mockRejectedValue(error);
       
       await expect(generateTimetable('test-file-id')).rejects.toThrow('Timetable generation failed: Generation failed');
     });
@@ -138,10 +150,13 @@ describe('API Service', () => {
 
   describe('downloadTimetable', () => {
     test('successfully downloads timetable', async () => {
+      const { downloadTimetable } = require('../api');
+      const apiClient = global.__mockApiClient;
+
       const mockBlob = new Blob(['test content'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const mockResponse = { data: mockBlob };
       
-      mockedAxios.post.mockResolvedValue(mockResponse);
+      apiClient.post.mockResolvedValue(mockResponse);
       
       // Mock DOM methods
       const mockLink = {
@@ -155,20 +170,16 @@ describe('API Service', () => {
       document.body.appendChild = jest.fn();
       window.URL.createObjectURL = jest.fn().mockReturnValue('blob:test-url');
       window.URL.revokeObjectURL = jest.fn();
+
+      await downloadTimetable('test-file-id', 'excel');
       
-      const timetableData = [{ title: 'Test Timetable' }];
-      
-      await downloadTimetable(timetableData, 'excel');
-      
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        '/timetable/download',
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/export-timetable',
         expect.objectContaining({
-          timetables: timetableData,
+          upload_id: 'test-file-id',
           format: 'excel'
         }),
-        expect.objectContaining({
-          responseType: 'blob'
-        })
+        expect.objectContaining({ responseType: 'blob' })
       );
       
       expect(document.createElement).toHaveBeenCalledWith('a');
@@ -177,12 +188,13 @@ describe('API Service', () => {
     });
 
     test('handles download error', async () => {
+      const { downloadTimetable } = require('../api');
+      const apiClient = global.__mockApiClient;
+
       const error = new Error('Download failed');
-      mockedAxios.post.mockRejectedValue(error);
-      
-      const timetableData = [{ title: 'Test Timetable' }];
-      
-      await expect(downloadTimetable(timetableData, 'excel')).rejects.toThrow('Download failed: Download failed');
+      apiClient.post.mockRejectedValue(error);
+
+      await expect(downloadTimetable('test-file-id', 'excel')).rejects.toThrow('Download failed: Download failed');
     });
   });
 });

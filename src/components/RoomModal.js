@@ -17,6 +17,8 @@ const RoomModal = ({
   currentLecturer,
   lecturerOptions,
   mode,
+  autoOpenLecturerModal,
+  autoApplyLecturerChange,
 }) => {
   const [selectedRoom, setSelectedRoom] = useState(currentRoom);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,8 +69,13 @@ const RoomModal = ({
       } else {
         setSelectedLecturer(null);
       }
+
+      if (autoOpenLecturerModal && isMultiLecturer) {
+        // Defer slightly so RoomModal renders before opening nested modal.
+        setTimeout(() => setLecturerModalOpen(true), 0);
+      }
     }
-  }, [isOpen, currentRoom, computeRoomUsage, currentLecturer, lecturerOptions]);
+  }, [isOpen, currentRoom, computeRoomUsage, currentLecturer, lecturerOptions, autoOpenLecturerModal, isMultiLecturer]);
 
   if (!isOpen) return null;
 
@@ -128,25 +135,40 @@ const RoomModal = ({
         />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '15px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', fontSize: '13px', color: '#11214D', fontWeight: '500' }}>
-            <input
-              type="checkbox"
-              checked={showAvailableOnly}
-              onChange={(e) => setShowAvailableOnly(e.target.checked)}
-              style={{ marginRight: '6px' }}
-            />
-            Available only
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', fontSize: '13px', color: '#11214D', fontWeight: '500' }}>
+              <input
+                type="checkbox"
+                checked={showAvailableOnly}
+                onChange={(e) => setShowAvailableOnly(e.target.checked)}
+                style={{ marginRight: '6px' }}
+              />
+              Available only
+            </label>
+          </div>
 
-          <select
-            value={buildingFilter}
-            onChange={(e) => setBuildingFilter(e.target.value)}
-            style={{ width: '180px', fontSize: '13px', padding: '6px 12px', borderRadius: '6px', border: '2px solid #e0e0e0' }}
-          >
-            <option value="ALL">All buildings</option>
-            <option value="TYD">TYD</option>
-            <option value="SST">SST</option>
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {isMultiLecturer && (
+              <button
+                onClick={() => setLecturerModalOpen(true)}
+                type="button"
+                style={{ backgroundColor: '#11214D', color: 'white', padding: '6px 12px', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: '600', fontSize: '12px', fontFamily: 'Poppins, sans-serif', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}
+                title="Change the primary lecturer for this cell"
+              >
+                Change Primary Lecturer
+              </button>
+            )}
+
+            <select
+              value={buildingFilter}
+              onChange={(e) => setBuildingFilter(e.target.value)}
+              style={{ width: '180px', fontSize: '13px', padding: '6px 12px', borderRadius: '6px', border: '2px solid #e0e0e0' }}
+            >
+              <option value="ALL">All buildings</option>
+              <option value="TYD">TYD</option>
+              <option value="SST">SST</option>
+            </select>
+          </div>
         </div>
 
         <div className="room-options">
@@ -183,17 +205,6 @@ const RoomModal = ({
             Cancel
           </button>
           
-          {isMultiLecturer && (
-            <button
-              onClick={() => {
-                setLecturerModalOpen(true);
-              }}
-              style={{ backgroundColor: '#ffc107', color: '#000', padding: '8px 16px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: '600' }}
-            >
-              {selectedLecturer ? `Lecturer: ${selectedLecturer}` : 'Assign Lecturer'}
-            </button>
-          )}
-
           {isManual && (
             <button
               onClick={handleDelete}
@@ -218,7 +229,21 @@ const RoomModal = ({
           isOpen={lecturerModalOpen}
           onClose={() => setLecturerModalOpen(false)}
           onConfirm={(lect) => {
-            setSelectedLecturer(lect);
+            const next = String(lect || '').trim();
+            if (!next) return;
+
+            setSelectedLecturer(next);
+
+            if (autoApplyLecturerChange) {
+              // Apply immediately (user expectation: click lecturer name -> cell updates)
+              if (selectedRoom) {
+                onConfirm({ room: selectedRoom, lecturer: next });
+              }
+              setLecturerModalOpen(false);
+              onClose();
+              return;
+            }
+
             setLecturerModalOpen(false);
           }}
           title={courseName ? `Select Lecturer - ${courseName}` : 'Select Lecturer'}

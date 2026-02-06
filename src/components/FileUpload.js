@@ -122,6 +122,7 @@ const FileUpload = ({
               type="file" 
               id="fileInput" 
               className="file-input" 
+              aria-label="Browse..."
               accept={process.env.REACT_APP_ALLOWED_FILE_TYPES || '.xlsx,.xls'}
               onChange={handleFileChange}
             />
@@ -177,7 +178,7 @@ const FileUpload = ({
               <button 
                 className="cancel-btn" 
                 onClick={handleCancel}
-                disabled={false}
+                disabled={isProcessing}
                 type="button"
               >
                 <span className="btn-icon">✕</span>

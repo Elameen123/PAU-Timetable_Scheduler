@@ -11,6 +11,7 @@ module.exports = function(app) {
     '/api/download-template',
     '/api/get-rooms-data',
     '/api/get-constraint-violations',
+    '/api/get-course-lecturers',
     '/api/save-timetable-changes',
     '/api/get-saved-timetable'
   ];

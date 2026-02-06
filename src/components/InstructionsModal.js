@@ -185,7 +185,7 @@ const InstructionsModal = ({ isOpen, onClose }) => {
                     
                     <div className="sheet-item">
                       <h5>3. Student Groups</h5>
-                      <p>Contains student group information with columns: Group ID, Group Name, Year, Semester, Size</p>
+                      <p>Contains student group information with columns: Group ID, Group Name, Level, Department, Size, Building</p>
                     </div>
                     
                     <div className="sheet-item">
@@ -319,25 +319,28 @@ const InstructionsModal = ({ isOpen, onClose }) => {
                             <tr>
                               <th>Group ID</th>
                               <th>Group Name</th>
-                              <th>Year</th>
-                              <th>Semester</th>
+                              <th>Level</th>
+                              <th>Department</th>
                               <th>Size</th>
+                              <th>Building</th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr>
                               <td>G001</td>
                               <td>CS Year 1 Group A</td>
-                              <td>1</td>
-                              <td>1</td>
+                              <td>100</td>
+                              <td>Computer Science</td>
                               <td>30</td>
+                              <td>SST</td>
                             </tr>
                             <tr>
                               <td>G002</td>
                               <td>Math Year 2 Group B</td>
-                              <td>2</td>
-                              <td>1</td>
+                              <td>200</td>
+                              <td>Mathematics</td>
                               <td>25</td>
+                              <td>TYD</td>
                             </tr>
                           </tbody>
                         </table>

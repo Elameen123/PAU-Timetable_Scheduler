@@ -289,6 +289,19 @@
   text-align: center;
 }
 
+.multi-lecturer-asterisk {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  color: #11214D;
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.15);
+  z-index: 4;
+  pointer-events: none;
+}
+
 .cell:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
@@ -367,13 +380,16 @@
 }
 
 /* Flash must win over any existing box-shadow/background (e.g. .manual-schedule has box-shadow !important) */
-@keyframes flashOverlayRed {
+@keyframes flashOverlayBlack {
+  /* Exactly two flashes */
   0% { opacity: 0; }
-  10% { opacity: 1; }
-  30% { opacity: 1; }
+  5% { opacity: 1; }
+  20% { opacity: 1; }
+  25% { opacity: 0; }
   50% { opacity: 0; }
-  60% { opacity: 1; }
-  80% { opacity: 1; }
+  55% { opacity: 1; }
+  70% { opacity: 1; }
+  75% { opacity: 0; }
   100% { opacity: 0; }
 }
 
@@ -381,19 +397,25 @@
   color: #fff !important;
 }
 
+.cell.flash-cell .cell-content,
+.cell.flash-cell .cell-content * {
+  color: #fff !important;
+}
+
 .cell.flash-cell::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(244, 67, 54, 1);
-  animation: flashOverlayRed 1.2s ease-in-out;
+  background: #11214D;
+  animation: flashOverlayBlack 1s linear;
   pointer-events: none;
-  z-index: 2;
+  /* Keep the overlay ABOVE the cell background, but BELOW the text */
+  z-index: 1;
 }
 
 .cell.flash-cell .cell-content {
   position: relative;
-  z-index: 3;
+  z-index: 2;
 }
 
 .download-footer {

@@ -1,3 +1,5 @@
+// Use the public axios entrypoint for the app build (respects package.json exports).
+// Unit tests mock this module to avoid Jest ESM parsing issues.
 import axios from 'axios';
 
 // Determine API base URL based on environment
@@ -421,6 +423,23 @@ export const getConstraintViolations = async (uploadId) => {
     return response.data.violations || {};
   } catch (error) {
     console.error('Error fetching constraint violations:', error);
+    return {};
+  }
+};
+
+/**
+ * Get mapping of course code -> lecturer options for a given upload.
+ * Used to mark multi-lecturer courses and allow switching the primary lecturer.
+ */
+export const getCourseLecturers = async (uploadId) => {
+  try {
+    if (!uploadId) return {};
+    const response = await makeRequestWithRetry(() =>
+      apiClient.get(`/api/get-course-lecturers/${uploadId}`)
+    );
+    return response.data.course_lecturers || {};
+  } catch (error) {
+    console.error('Error fetching course lecturers:', error);
     return {};
   }
 };

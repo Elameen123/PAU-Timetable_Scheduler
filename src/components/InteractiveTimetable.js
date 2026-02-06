@@ -5,12 +5,13 @@ import ConstraintModal from './ConstraintModal';
 import MissingClassesModal from './MissingClassesModal';
 import DownloadModal from './DownloadModal';
 import TimetableHelpModal from './TimetableHelpModal';
-import { getRoomsData, getConstraintViolations, saveTimetableChanges, getSavedTimetable } from '../services/api';
+import { getRoomsData, getConstraintViolations, saveTimetableChanges, getSavedTimetable, getCourseLecturers } from '../services/api';
 
 const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
   const initialSnapshotRef = useRef(null);
   const flashTimerRef = useRef(null);
   const pendingNavRef = useRef(null);
+  const clickTimerRef = useRef(null);
 
   const days = useMemo(() => ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], []);
   const hours = useMemo(() => Array.from({ length: 10 }, (_, i) => `${(8 + i).toString().padStart(2, '0')}:30 - ${(9 + i).toString().padStart(2, '0')}:30`), []);
@@ -76,6 +77,7 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
   const [constraintDetails, setConstraintDetails] = useState({});
   const [conflicts, setConflicts] = useState({});
   const [roomsData, setRoomsData] = useState([]);
+  const [courseLecturersByCourse, setCourseLecturersByCourse] = useState({});
   const [constraintsLoading, setConstraintsLoading] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [missingClassesModalOpen, setMissingClassesModalOpen] = useState(false);
@@ -84,6 +86,41 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
   const [pendingSchedule, setPendingSchedule] = useState(null);
 
   const [flashingCell, setFlashingCell] = useState(null);
+
+  const runFlash = useCallback((row, col) => {
+    const r = parseInt(row, 10);
+    const c = parseInt(col, 10);
+    if (Number.isNaN(r) || Number.isNaN(c)) return;
+
+    const selector = `td.cell[data-row="${r}"][data-col="${c}"]`;
+    const el = document.querySelector(selector);
+    if (el && typeof el.scrollIntoView === 'function') {
+      try {
+        el.scrollIntoView({ block: 'center', inline: 'center' });
+      } catch (_) {
+        el.scrollIntoView();
+      }
+    }
+
+    if (flashTimerRef.current) {
+      clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = null;
+    }
+
+    setFlashingCell(null);
+    requestAnimationFrame(() => {
+      setFlashingCell({ row: r, col: c, nonce: Date.now() });
+    });
+
+    flashTimerRef.current = setTimeout(() => {
+      setFlashingCell(null);
+      flashTimerRef.current = null;
+    }, 1050);
+  }, []);
+
+  // When a user double-clicks a multi-lecturer course, open the lecturer picker immediately.
+  const [autoOpenLecturerPicker, setAutoOpenLecturerPicker] = useState(false);
+  const [autoApplyLecturerChange, setAutoApplyLecturerChange] = useState(false);
 
   const groupDropdownRef = useRef(null);
   const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
@@ -99,7 +136,22 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
   };
 
   const getGroupLabel = useCallback((t, idx) => {
-    return (t?.student_group?.name || t?.student_group || `Group ${idx + 1}`);
+    const sg = t?.student_group;
+    const name = (sg && typeof sg === 'object')
+      ? (sg?.name || `Group ${idx + 1}`)
+      : (sg || `Group ${idx + 1}`);
+
+    const rawBuilding = (sg && typeof sg === 'object')
+      ? (sg?.building || sg?.effective_building || '')
+      : '';
+    const b = String(rawBuilding || '').trim().toUpperCase();
+    const normalized = (b === 'SST' || b.startsWith('SST'))
+      ? 'SST'
+      : (b === 'TYD' || b.startsWith('TYD'))
+        ? 'TYD'
+        : '';
+
+    return normalized ? `${name} (${normalized})` : name;
   }, []);
 
   // Handler for navigation from ConstraintModal (Step 3: Flashing)
@@ -112,9 +164,17 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
      if (!isNaN(g) && g >= 0 && g < timetables.length) {
        // Defer the flash until after the target group's table has rendered.
        pendingNavRef.current = (!isNaN(r) && !isNaN(c)) ? { row: r, col: c } : null;
+       if (g === currentGroupIdx) {
+         // If we're already on that group, React may not re-render -> flash now.
+         if (!isNaN(r) && !isNaN(c)) {
+           runFlash(r, c);
+         }
+         return;
+       }
+
        setCurrentGroupIdx(g);
      }
-  }, [timetables.length]);
+  }, [timetables.length, currentGroupIdx, runFlash]);
 
   // Run the flash after group navigation has actually rendered the table.
   useEffect(() => {
@@ -124,34 +184,8 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
     const { row: r, col: c } = pending;
     pendingNavRef.current = null;
 
-    // Scroll target cell into view so the flash is visible.
-    // Uses data attributes set on each cell.
-    const selector = `td.cell[data-row="${r}"][data-col="${c}"]`;
-    const el = document.querySelector(selector);
-    if (el && typeof el.scrollIntoView === 'function') {
-      try {
-        el.scrollIntoView({ block: 'center', inline: 'center' });
-      } catch (_) {
-        el.scrollIntoView();
-      }
-    }
-
-    // Trigger flash (force restart even if same target)
-    if (flashTimerRef.current) {
-      clearTimeout(flashTimerRef.current);
-      flashTimerRef.current = null;
-    }
-
-    setFlashingCell(null);
-    requestAnimationFrame(() => {
-      setFlashingCell({ row: r, col: c, nonce: Date.now() });
-    });
-
-    flashTimerRef.current = setTimeout(() => {
-      setFlashingCell(null);
-      flashTimerRef.current = null;
-    }, 1300);
-  }, [currentGroupIdx]);
+    runFlash(r, c);
+  }, [currentGroupIdx, runFlash]);
 
   useEffect(() => {
     setTimetables(normalizeTimetables(timetablesData || []));
@@ -252,6 +286,20 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
     };
 
     loadConstraintViolations();
+  }, [uploadId]);
+
+  // Load multi-lecturer course options (course code -> lecturer list)
+  useEffect(() => {
+    const loadCourseLecturers = async () => {
+      if (!uploadId) return;
+      try {
+        const mapping = await getCourseLecturers(uploadId);
+        setCourseLecturersByCourse(mapping || {});
+      } catch (e) {
+        console.error('Failed to load course lecturers:', e);
+      }
+    };
+    loadCourseLecturers();
   }, [uploadId]);
 
   // Load saved timetable with manual changes from backend
@@ -359,14 +407,23 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
     // Bold logic based on conflict type
     const isLecturerConflict = conflict && (conflict.lecturerConflict || conflict.bothConflict);
     const isRoomConflict = conflict && (conflict.roomConflict || conflict.bothConflict);
-    // Check for multiple lecturers (comma separated)
-    const hasMultipleLecturers = lecturer && lecturer.includes(',');
+    const lecturerOptions = Array.isArray(courseLecturersByCourse?.[course]) ? courseLecturersByCourse[course] : [];
+    const hasMultiplePossibleLecturers = (lecturerOptions.length > 1);
 
     return (
       <div className="cell-content" style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+        {hasMultiplePossibleLecturers && (
+          <span
+            className="multi-lecturer-asterisk"
+            title="Multiple lecturers available"
+            aria-label="Multiple lecturers available"
+          >
+            *
+          </span>
+        )}
         <span>Course: {course}</span>
         <span style={{ fontWeight: isLecturerConflict ? 'bold' : 'normal' }}>
-          Lecturer: {lecturer || 'Unknown'}{hasMultipleLecturers ? ' (*)' : ''}
+          Lecturer: {lecturer || 'Unknown'}
         </span>
         <span style={{ fontWeight: isRoomConflict ? 'bold' : 'normal' }}>
           Room: {room || 'Unknown'}
@@ -523,17 +580,53 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
 
   // Handle cell click for room selection
   const handleCellClick = (row, col) => {
-    const cell = timetables[currentGroupIdx]?.timetable?.[row]?.[col];
-    if (cell === 'BREAK') return;
-
-    // Open MissingClassesModal if cell is free
-    if (!cell || cell === 'FREE' || String(cell).trim() === '') {
-      setSelectedCell({ row, col });
-      setMissingClassesModalOpen(true);
-      return;
+    // Delay click so double-click can cancel it.
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
     }
 
+    clickTimerRef.current = setTimeout(() => {
+      clickTimerRef.current = null;
+
+      const cell = timetables[currentGroupIdx]?.timetable?.[row]?.[col];
+      if (cell === 'BREAK') return;
+
+      // Default click is room edit/schedule; do not auto-open lecturer picker.
+      setAutoOpenLecturerPicker(false);
+      setAutoApplyLecturerChange(false);
+
+      // Open MissingClassesModal if cell is free
+      if (!cell || cell === 'FREE' || String(cell).trim() === '') {
+        setSelectedCell({ row, col });
+        setMissingClassesModalOpen(true);
+        return;
+      }
+
+      setSelectedCell({ row, col });
+      setRoomModalOpen(true);
+    }, 200);
+  };
+
+  const handleCellDoubleClick = (row, col) => {
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
+
+    const cell = timetables[currentGroupIdx]?.timetable?.[row]?.[col];
+    if (cell === 'BREAK') return;
+    if (!cell || cell === 'FREE' || String(cell).trim() === '') return;
+
+    const { course } = parseCell(cell);
+    if (!course) return;
+
+    const options = Array.isArray(courseLecturersByCourse?.[course]) ? courseLecturersByCourse[course] : [];
+    if (options.length <= 1) return;
+
     setSelectedCell({ row, col });
+    setAutoOpenLecturerPicker(true);
+    setAutoApplyLecturerChange(true);
     setRoomModalOpen(true);
   };
 
@@ -656,9 +749,7 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
   // Render timetable
   const renderTimetable = () => {
     const timetable = timetables[currentGroupIdx]?.timetable || [];
-    const groupName = timetables[currentGroupIdx]?.student_group?.name || 
-                      timetables[currentGroupIdx]?.student_group || 
-                      'Unknown Group';
+    const groupName = getGroupLabel(timetables[currentGroupIdx], currentGroupIdx);
 
     return (
       <div className="student-group-container">
@@ -753,6 +844,7 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, rowIdx, finalCol)}
                         onClick={() => handleCellClick(rowIdx, finalCol)}
+                        onDoubleClick={() => handleCellDoubleClick(rowIdx, finalCol)}
                       >
                         {cell === 'BREAK' ? 'BREAK' : renderCellContent(cell, cellKey, conflicts)}
                       </td>
@@ -849,6 +941,8 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
             setRoomModalOpen(false);
             setSelectedCell(null);
             setPendingSchedule(null);
+            setAutoOpenLecturerPicker(false);
+            setAutoApplyLecturerChange(false);
           }}
           onConfirm={handleRoomChange}
           currentRoom={selectedCell ? parseCell(timetables[currentGroupIdx]?.timetable[selectedCell.row][selectedCell.col]).room : null}
@@ -862,16 +956,24 @@ const InteractiveTimetable = ({ timetablesData, uploadId, onSave }) => {
           currentLecturer={pendingSchedule ? (pendingSchedule.lecturer || null) : (selectedCell ? parseCell(timetables[currentGroupIdx]?.timetable[selectedCell.row][selectedCell.col]).lecturer : null)}
           lecturerOptions={pendingSchedule
             ? (Array.isArray(pendingSchedule.lecturerOptions) ? pendingSchedule.lecturerOptions : [])
-            : (selectedCell ? splitLecturers(parseCell(timetables[currentGroupIdx]?.timetable[selectedCell.row][selectedCell.col]).lecturer) : [])
+            : (selectedCell ? (() => {
+              const cell = timetables[currentGroupIdx]?.timetable[selectedCell.row][selectedCell.col];
+              const { course, lecturer } = parseCell(cell);
+              const options = Array.isArray(courseLecturersByCourse?.[course]) ? courseLecturersByCourse[course] : [];
+              return options.length > 0 ? options : splitLecturers(lecturer);
+            })() : [])
           }
           isMultiLecturer={pendingSchedule
             ? (Array.isArray(pendingSchedule.lecturerOptions) && pendingSchedule.lecturerOptions.length > 1)
             : (selectedCell && (() => {
               const cell = timetables[currentGroupIdx]?.timetable[selectedCell.row][selectedCell.col];
-              const { lecturer } = parseCell(cell);
-              return lecturer && lecturer.includes(',');
+              const { course } = parseCell(cell);
+              const options = Array.isArray(courseLecturersByCourse?.[course]) ? courseLecturersByCourse[course] : [];
+              return (options.length > 1);
             })())
           }
+          autoOpenLecturerModal={autoOpenLecturerPicker}
+          autoApplyLecturerChange={autoApplyLecturerChange}
         />
       )}
 
