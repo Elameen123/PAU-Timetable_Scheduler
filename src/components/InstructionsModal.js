@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import './InstructionsModal.css';
 
 const InstructionsModal = ({ isOpen, onClose }) => {
+  const templateUrl = `/Timetable_Input_Template.xlsx?v=${encodeURIComponent(
+    process.env.REACT_APP_TEMPLATE_VERSION || 'latest'
+  )}`;
+
   const modalRef = useRef(null);
   const closeButtonRef = useRef(null);
   const [activeTab, setActiveTab] = useState('requirements');
@@ -149,7 +153,7 @@ const InstructionsModal = ({ isOpen, onClose }) => {
                   <h4>Download Template File</h4>
                   <p>Use our pre-formatted template to ensure compatibility:</p>
                   <a
-                  href="/Timetable_Input_Template.xlsx"
+                  href={templateUrl}
                   download="Timetable_Input_Template.xlsx" // The 'download' attribute is key
                   className="download-template-btn"
                 >
