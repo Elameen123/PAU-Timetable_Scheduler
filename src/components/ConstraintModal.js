@@ -207,7 +207,8 @@ const ConstraintModal = ({ isOpen, onClose, constraintDetails, timetables, onNav
         }
       }
 
-      return `Lecturer '${violation.lecturer}' is available at [${availTimeDisplay}] on ${violation.day} but scheduled at ${violation.time}`;
+      const when = locDisplay || 'Unknown day/time';
+      return `Lecturer '${violation.lecturer}' is available at [${availTimeDisplay}] but scheduled on ${when}`;
     }
 
     if (internalName === 'Lecturer Workload Violations') {
@@ -393,7 +394,7 @@ const ConstraintModal = ({ isOpen, onClose, constraintDetails, timetables, onNav
                                 if (!text) return null;
                                 const s = String(text);
                                 // Grab first HH:MM (optionally followed by AM/PM)
-                                const m = s.match(/\b(\d{1,2}[:\.]\d{2})\s*(AM|PM)?\b/i);
+                                const m = s.match(/\b(\d{1,2}[:.]\d{2})\s*(AM|PM)?\b/i);
                                 if (!m) return null;
                                 return (m[2] ? `${m[1].replace('.', ':')} ${m[2]}` : m[1].replace('.', ':'));
                               };
