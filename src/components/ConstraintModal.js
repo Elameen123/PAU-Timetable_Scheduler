@@ -185,6 +185,24 @@ const ConstraintModal = ({ isOpen, onClose, constraintDetails, timetables, onNav
         locDisplay = `${violation.day} at ${violation.time}`;
       }
 
+      // Display available days
+      let availDayDisplay = violation.available_days;
+      if (typeof availDayDisplay === 'object' && availDayDisplay !== null) {
+        if (Array.isArray(availDayDisplay)) {
+          availDayDisplay = availDayDisplay.join(', ');
+        } else {
+          // Unexpected structure; best-effort flatten
+          try {
+            availDayDisplay = Object.values(availDayDisplay).flat().join(', ');
+          } catch (e) {
+            availDayDisplay = String(availDayDisplay);
+          }
+        }
+      }
+      if (availDayDisplay == null || String(availDayDisplay).trim() === '') {
+        availDayDisplay = 'Not specified';
+      }
+
       // Handle case where available_times is passed as a raw object/array
       let availTimeDisplay = violation.available_times;
       if (typeof availTimeDisplay === 'object' && availTimeDisplay !== null) {
@@ -207,8 +225,12 @@ const ConstraintModal = ({ isOpen, onClose, constraintDetails, timetables, onNav
         }
       }
 
+      if (availTimeDisplay == null || String(availTimeDisplay).trim() === '') {
+        availTimeDisplay = 'Not specified';
+      }
+
       const when = locDisplay || 'Unknown day/time';
-      return `Lecturer '${violation.lecturer}' is available at [${availTimeDisplay}] but scheduled on ${when}`;
+      return `Lecturer '${violation.lecturer}' is available on days [${availDayDisplay}] during times [${availTimeDisplay}] but scheduled on ${when}`;
     }
 
     if (internalName === 'Lecturer Workload Violations') {
