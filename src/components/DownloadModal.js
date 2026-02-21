@@ -40,7 +40,13 @@ const DownloadModal = ({ isOpen, onClose, timetables, uploadId }) => {
         filename = decodeURIComponent(match?.[1] || match?.[2] || '');
       }
       if (!filename) {
-        const prefix = format === 'sst' ? 'SST_Timetables' : (format === 'tyd' ? 'TYD_Timetables' : 'Lecturer_Timetables');
+        const prefixMap = {
+          sst: 'SST_Timetables',
+          tyd: 'TYD_Timetables',
+          lecturer: 'Lecturer_Timetables',
+          classrooms: 'Classrooms_Scheduled',
+        };
+        const prefix = prefixMap[format] || 'Export';
         filename = `${prefix}_${uploadId}.xlsx`;
       }
 
@@ -121,6 +127,28 @@ const DownloadModal = ({ isOpen, onClose, timetables, uploadId }) => {
             </span>
             <button
               onClick={() => downloadFromBackend('lecturer')}
+              disabled={downloading}
+              style={{
+                backgroundColor: '#11214D',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '5px',
+                cursor: downloading ? 'wait' : 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              Download
+            </button>
+          </div>
+
+          {/* Classrooms Scheduled */}
+          <div className="download-option">
+            <span style={{ flex: 1, fontSize: '16px', fontWeight: '500' }}>
+              Download Classrooms Scheduled
+            </span>
+            <button
+              onClick={() => downloadFromBackend('classrooms')}
               disabled={downloading}
               style={{
                 backgroundColor: '#11214D',
